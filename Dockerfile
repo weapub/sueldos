@@ -1,4 +1,5 @@
 FROM node:22-slim AS deps
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -13,6 +14,7 @@ RUN npm run build
 
 # Imagen mínima para correr el server Next.js standalone.
 FROM node:22-slim AS runner
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
