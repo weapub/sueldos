@@ -39,7 +39,7 @@ services:
       target: builder
     container_name: migrate-sueldos
     env_file: .env
-    entrypoint: ["npx", "prisma", "migrate", "deploy"]
+    command: ["npx", "prisma", "migrate", "deploy"]
     depends_on:
       db-sueldos:
         condition: service_healthy
