@@ -1,0 +1,53 @@
+services:
+  db-sueldos:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    container_name: db-sueldos
+    environment:
+      POSTGRES_DB: sueldos
+      POSTGRES_USER: sueldos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/sueldos/data/pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sueldos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - systeg
+
+  api-sueldos:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    container_name: api-sueldos
+    env_file: .env
+    depends_on:
+      db-sueldos:
+        condition: service_healthy
+    networks:
+      - systeg
+
+  # Servicio "tools": no arranca con `up -d`, se corre a demanda para migraciones/seed.
+  # Ejemplo: docker compose run --rm migrate-sueldos
+  #          docker compose run --rm migrate-sueldos npm run db:seed
+  migrate-sueldos:
+    build:
+      context: .
+      target: builder
+    container_name: migrate-sueldos
+    env_file: .env
+    entrypoint: ["npx", "prisma", "migrate", "deploy"]
+    depends_on:
+      db-sueldos:
+        condition: service_healthy
+    networks:
+      - systeg
+    profiles: ["tools"]
+
+networks:
+  systeg:
+    external: true
+    name: systeg

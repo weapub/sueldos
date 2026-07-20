@@ -1,0 +1,518 @@
+// Prisma schema — Sistema de liquidación de sueldos (Ley 27.802)
+// Ver plan: C:\Users\Ivan\.claude\plans\ethereal-marinating-bunny.md
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Usuarios y roles ----------
+
+enum Role {
+  CONTADOR
+  ASISTENTE
+  CLIENTE
+}
+
+model Usuario {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  nombre       String
+  role         Role
+  empresaId    String? // solo se usa para el rol CLIENTE: acota el acceso a una única empresa
+  empresa      Empresa? @relation(fields: [empresaId], references: [id])
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditLogs AuditLog[]
+
+  @@index([empresaId])
+}
+
+// ---------- Empresas y estructura de convenio ----------
+
+enum TamanoEmpresa {
+  MICRO
+  PEQUENA
+  MEDIANA
+  GRANDE
+}
+
+model Empresa {
+  id                   String        @id @default(cuid())
+  razonSocial          String
+  cuit                 String        @unique
+  actividad            String
+  tamano               TamanoEmpresa // determina la tasa FAL (PyME vs Grande) y contribuciones patronales
+  provincia            String
+  direccion            String? // domicilio, exigido en la cabecera del recibo Anexo III (Dec. 407/2026)
+  tipoEmpresaArca      Int? // código ARCA de tipo de empleador (distinto de `tamano`, que es uso interno para FAL/contribuciones)
+  jornadaLaboralCodigo Int? // código ARCA de jornada laboral (1-4; 4 = jornada parcial)
+  activa               Boolean       @default(true)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  usuarios              Usuario[]
+  categorias            CategoriaConvenio[]
+  legajos               Legajo[]
+  periodos              PeriodoLiquidacion[]
+  eventosDesvinculacion EventoDesvinculacion[]
+  conceptosDefinicion   ConceptoDefinicion[]
+  tasas                 TasaLaboral[]
+  falCuenta             FalCuenta?
+}
+
+model CategoriaConvenio {
+  id                         String    @id @default(cuid())
+  empresaId                  String
+  empresa                    Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  nombre                     String // ej. "Administrativo A"
+  convenioNombre             String? // etiqueta libre, ej. "CCT 130/75" — no se usa programáticamente
+  salarioBaseConvenio        Decimal   @db.Decimal(14, 2) // REM de escala; también es la base del tope 3x del art. 245
+  remuneracionNoRemunerativa Decimal   @default(0) @db.Decimal(14, 2) // NO REM de escala vigente en esta versión
+  vigenciaDesde              DateTime
+  vigenciaHasta              DateTime?
+  createdAt                  DateTime  @default(now())
+
+  legajos Legajo[]
+
+  @@unique([empresaId, nombre, vigenciaDesde])
+  @@index([empresaId])
+}
+
+// ---------- Legajos ----------
+
+enum TipoContrato {
+  TIEMPO_INDETERMINADO
+  PLAZO_FIJO
+  TEMPORADA
+  PART_TIME
+  EVENTUAL
+}
+
+enum ModalidadRemuneracion {
+  MENSUAL
+  JORNAL
+  HORA
+}
+
+enum SituacionLegajo {
+  ACTIVO
+  SUSPENDIDO
+  DESVINCULADO
+}
+
+model Legajo {
+  id                     String                @id @default(cuid())
+  empresaId              String
+  empresa                Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  numeroLegajo           Int
+  nombre                 String
+  apellido               String
+  cuil                   String                @unique
+  fechaNacimiento        DateTime
+  fechaIngreso           DateTime // si hay reingreso, esta es la fecha ORIGINAL (continuidad de antigüedad)
+  fechaReingreso         DateTime?
+  legajoAnteriorId       String?
+  legajoAnterior         Legajo?               @relation("Reingreso", fields: [legajoAnteriorId], references: [id])
+  reingresos             Legajo[]              @relation("Reingreso")
+  categoriaId            String
+  categoria              CategoriaConvenio     @relation(fields: [categoriaId], references: [id])
+  tipoContrato           TipoContrato
+  modalidadRemuneracion  ModalidadRemuneracion
+  horasSemanales         Decimal?              @db.Decimal(5, 2) // horas contratadas reales (part-time, art. 92 ter)
+  horasSemanalesFullTime Decimal               @default(48) @db.Decimal(5, 2)
+  sueldoBasico           Decimal               @db.Decimal(14, 2)
+  obraSocial             String?
+  codigoObraSocialRnos   String? // código RNOS de 6 dígitos (ej. 119302)
+  cuentaSueldo           String?
+  cbu                    String?
+  situacion              SituacionLegajo       @default(ACTIVO)
+  fechaEgreso            DateTime?
+
+  // Datos familiares / convencionales (EMPLEADOS, columnas O-S de GONZALEZ.xlsm)
+  conyuge              Boolean @default(false)
+  cantidadHijos        Int     @default(0)
+  correspondeCCT       Boolean @default(true) // CCT SI/NO
+  correspondeSVO       Boolean @default(true) // SCVO (seguro colectivo de vida obligatorio) SI/NO
+  correspondeReduccion Boolean @default(false)
+  afiliadoSindical     Boolean @default(false) // condiciona el tope del 2% de solidaridad sindical (art. Ley 27.802 §3.6)
+
+  // Título XX Ley 27.802 — Régimen de Incentivo a la Formalización Laboral
+  regimenRIFL          Boolean   @default(false)
+  regimenRIFLFechaAlta DateTime?
+
+  // Códigos ARCA (LSD / F931) — TODO(parametrizable): tablas de códigos oficiales, no hardcodear valores
+  codigoSituacion             Int?
+  codigoCondicion             Int?
+  codigoActividad             Int?
+  codigoModalidadContratacion Int?
+  codigoSiniestrado           Int?
+  codigoLocalidad             Int?
+  situacionRevista1           Int?
+  diaInicioSituacionRevista1  Int?
+  situacionRevista2           Int?
+  diaInicioSituacionRevista2  Int?
+  situacionRevista3           Int?
+  diaInicioSituacionRevista3  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  liquidaciones         LiquidacionMensual[]
+  eventosDesvinculacion EventoDesvinculacion[]
+  vacacionPeriodos      VacacionPeriodo[]
+
+  @@unique([empresaId, numeroLegajo])
+  @@index([empresaId])
+  @@index([categoriaId])
+}
+
+model VacacionPeriodo {
+  id               String    @id @default(cuid())
+  legajoId         String
+  legajo           Legajo    @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  anio             Int
+  diasCorresponden Int
+  diasGozados      Int       @default(0)
+  fechaDesde       DateTime?
+  fechaHasta       DateTime?
+
+  @@unique([legajoId, anio])
+}
+
+// ---------- Períodos y liquidaciones mensuales ----------
+
+enum EstadoPeriodo {
+  BORRADOR
+  CONFIRMADO
+  CERRADO
+}
+
+model PeriodoLiquidacion {
+  id        String        @id @default(cuid())
+  empresaId String
+  empresa   Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  anio      Int
+  mes       Int
+  estado    EstadoPeriodo @default(BORRADOR)
+  fechaPago DateTime?
+
+  // Depósito de cargas sociales del período — cabecera obligatoria del recibo Anexo III (Dec. 407/2026, §3.1)
+  ultimoDepositoAportesPeriodo String? // "MM/AAAA" del período depositado (puede ser el anterior)
+  ultimoDepositoAportesBanco   String?
+  ultimoDepositoAportesFecha   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  liquidaciones  LiquidacionMensual[]
+  falMovimientos FalMovimiento[]
+
+  @@unique([empresaId, anio, mes])
+  @@index([empresaId])
+}
+
+enum EstadoLiquidacion {
+  BORRADOR
+  CONFIRMADA
+  ANULADA
+}
+
+model LiquidacionMensual {
+  id                            String             @id @default(cuid())
+  periodoId                     String
+  periodo                       PeriodoLiquidacion @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  legajoId                      String
+  legajo                        Legajo             @relation(fields: [legajoId], references: [id])
+  diasTrabajados                Int
+  horasTrabajadas               Decimal?           @db.Decimal(6, 2)
+  totalRemunerativo             Decimal            @db.Decimal(14, 2)
+  totalNoRemunerativo           Decimal            @db.Decimal(14, 2)
+  totalDeducciones              Decimal            @db.Decimal(14, 2)
+  totalContribucionesPatronales Decimal            @db.Decimal(14, 2) // informativo, requerido en el recibo (art. 140)
+  neto                          Decimal            @db.Decimal(14, 2)
+  estado                        EstadoLiquidacion  @default(BORRADOR)
+  snapshotInputJson             Json // input exacto del motor de cálculo, para auditoría/reproducibilidad
+  calculadoPorUsuarioId         String
+
+  // Constancia de emisión del recibo Anexo III (Dec. 407/2026: se habilita la emisión/firma
+  // digital, pero persiste la obligación de acreditar la entrega). Se fija una única vez, al
+  // confirmar el período — no se recalcula en cada descarga del PDF.
+  reciboEmitidoEn DateTime?
+  reciboHash      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conceptos ConceptoLiquidacion[]
+
+  @@unique([periodoId, legajoId])
+  @@index([legajoId])
+}
+
+// ---------- Catálogo de conceptos ----------
+
+enum TipoConcepto {
+  REMUNERATIVO
+  NO_REMUNERATIVO
+  DEDUCCION
+  CONTRIBUCION_PATRONAL
+}
+
+enum SubtipoConcepto {
+  BENEFICIO_SOCIAL_103BIS // art. 103 bis: comida, medicina, indumentaria, guardería, útiles, capacitación, sepelio
+  NO_REMUN_105 // art. 105: dividendos, stock options, km, viáticos, transporte, vivienda, telefonía
+  DINAMICO_104BIS // art. 104 bis: bonos variables, sujetos a aportes/contribuciones pero sin continuidad
+  SINDICAL
+  EMBARGO
+  OTRA_DEDUCCION
+}
+
+/// Agrupación de la Sección B del recibo Anexo III (Dec. 407/2026, §3.1) — costo laboral total
+/// expuesto ANTES del bruto. Solo se usa en conceptos de contribución patronal / deducción.
+enum RubroRecibo {
+  SINDICAL
+  SEGURIDAD_SOCIAL // SIPA, FNE, Asignaciones Familiares
+  OBRA_SOCIAL
+  INSSJP_PAMI
+  ART
+  CAMARAS_EMPRESARIALES
+  OTROS_CONVENCIONALES // SVO, FAL, etc.
+}
+
+model ConceptoDefinicion {
+  id          String           @id @default(cuid())
+  empresaId   String? // null = catálogo global por defecto
+  empresa     Empresa?         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  codigo      String // código propio del empleador (5 dígitos en GONZALEZ.xlsm, ej. "10001")
+  codigoArca  String? // código de concepto AFIP/ARCA (6 dígitos, ej. "110000") — para LSD/F931
+  nombre      String
+  tipo        TipoConcepto
+  subtipo     SubtipoConcepto?
+  rubroRecibo RubroRecibo? // agrupación para la Sección B del recibo Anexo III
+
+  // Matriz de tributación simplificada, usada por el motor de liquidación mensual actual.
+  afectaAportes          Boolean @default(true)
+  afectaContribuciones   Boolean @default(true)
+  afectaSAC              Boolean @default(true) // cuenta para la "mejor remuneración" (SAC, art. 245)
+  esVariable             Boolean @default(false) // promedio 6/12 meses para art. 245
+  requiereConsentimiento Boolean @default(false) // deducciones art. 133 que requieren consentimiento explícito
+
+  // Matriz de tributación GRANULAR (hoja CONCEPTOS de GONZALEZ.xlsm), necesaria para calcular
+  // las remuneraciones imponibles 1-11 del F931/LSD. Todavía no la consume el motor de cálculo
+  // (eso es trabajo de Fase 2) — se persiste ahora para no perder la fuente de verdad del Excel.
+  aportesSipa            Boolean @default(false)
+  contribSipa            Boolean @default(false)
+  aportesInssjp          Boolean @default(false)
+  contribInssjp          Boolean @default(false)
+  aportesObraSocial      Boolean @default(false)
+  contribObraSocial      Boolean @default(false)
+  aportesFondoSolidario  Boolean @default(false) // ex ANSSAL
+  contribFondoSolidario  Boolean @default(false)
+  aportesRenatea         Boolean @default(false) // ex RENATRE
+  contribRenatea         Boolean @default(false)
+  contribAsigFamiliares  Boolean @default(false)
+  contribFNE             Boolean @default(false)
+  contribLRT             Boolean @default(false)
+  afectaRegDiferenciales Boolean @default(false) // afecta REM imponible 6
+  afectaRegEspeciales    Boolean @default(false) // afecta REM imponible 7
+
+  ordenImpresion Int      @default(0)
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  lineas ConceptoLiquidacion[]
+
+  @@unique([empresaId, codigo])
+  @@index([empresaId])
+}
+
+model ConceptoLiquidacion {
+  id                    String             @id @default(cuid())
+  liquidacionId         String
+  liquidacion           LiquidacionMensual @relation(fields: [liquidacionId], references: [id], onDelete: Cascade)
+  conceptoDefinicionId  String
+  conceptoDefinicion    ConceptoDefinicion @relation(fields: [conceptoDefinicionId], references: [id])
+  descripcion           String // snapshot: sobrevive a ediciones futuras del catálogo
+  cantidad              Decimal?           @db.Decimal(8, 2)
+  montoUnitario         Decimal?           @db.Decimal(14, 2)
+  monto                 Decimal            @db.Decimal(14, 2) // sin signo; el signo se deriva del tipo al agregar
+  consentimientoFirmado Boolean            @default(false)
+  orden                 Int                @default(0)
+
+  @@index([liquidacionId])
+}
+
+// ---------- Tasas y coeficientes ----------
+
+enum ClaveTasa {
+  APORTE_JUBILACION
+  APORTE_LEY19032_PAMI
+  APORTE_OBRA_SOCIAL
+  CONTRIB_JUBILACION
+  CONTRIB_LEY19032
+  CONTRIB_OBRA_SOCIAL
+  CONTRIB_ART
+  CONTRIB_SINDICAL
+  FAL_GRANDE
+  FAL_PYME
+  TOPE_DEDUCCION_GENERAL
+  TOPE_DEDUCCION_SINDICAL
+  // Reglas de antigüedad/presentismo por convenio (motor de liquidación mensual)
+  ANTIGUEDAD_PORCENTAJE_ANIO // ej. 0.01 = 1% del básico por año de antigüedad (CCT 130/75)
+  // Título XX Ley 27.802 — RIFL (Régimen de Incentivo a la Formalización Laboral, Dec. 315/2026)
+  RIFL_REDUCCION_CONTRIBUCIONES // % de reducción de contribuciones patronales — default 0 (sin
+  // reglamentar el valor real todavía, ver docs/GAP_ANALYSIS.md §3.4); cargar solo cuando se
+  // confirme la alícuota oficial, nunca inventarla
+  // Comercio 130/75 — deducciones adicionales (todas %)
+  DEDUCCION_FAECYS
+  DEDUCCION_IPS_FSA // aporte previsional provincial (ej. Formosa) — cargar como override por empresa si aplica
+  // Contribuciones patronales adicionales (todas %)
+  CONTRIB_ASIG_FAMILIARES
+  CONTRIB_FNE
+  // Montos FIJOS por período/legajo (no %) — ver EMPLEADOR en GONZALEZ.xlsm
+  ART_FFEP_FIJO
+  SVO_FIJO
+  APORTE_SOLIDARIO_OSECAC_FIJO
+  DETRACCION_ART22_CON_SAC
+  DETRACCION_ART22_SIN_SAC
+  DETRACCION_ART23_CONTRIBUCIONES
+}
+
+model TasaLaboral {
+  id            String    @id @default(cuid())
+  empresaId     String? // null = default global; no-null = override por empresa
+  empresa       Empresa?  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  clave         ClaveTasa
+  /// Fracción (ej. 0.11000 = 11%) para claves de tasa, o monto fijo en pesos (ej. 7003.68000)
+  /// para las claves *_FIJO / DETRACCION_* — el significado depende de `clave`, ver comentarios arriba.
+  valor         Decimal   @db.Decimal(14, 5)
+  vigenciaDesde DateTime
+  vigenciaHasta DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([empresaId, clave])
+}
+
+model IndiceIPC {
+  id          String   @id @default(cuid())
+  anioMes     String   @unique // "2026-06"
+  coeficiente Decimal  @db.Decimal(10, 6)
+  createdAt   DateTime @default(now())
+}
+
+// ---------- Desvinculaciones e indemnizaciones ----------
+
+enum MotivoDesvinculacion {
+  DESPIDO_SIN_CAUSA
+  DESPIDO_CON_CAUSA
+  RENUNCIA
+  MUTUO_ACUERDO
+  FALLECIMIENTO
+  VENCIMIENTO_CONTRATO
+}
+
+enum EstadoEvento {
+  BORRADOR
+  CONFIRMADO
+  PAGADO
+}
+
+model EventoDesvinculacion {
+  id                    String               @id @default(cuid())
+  legajoId              String
+  legajo                Legajo               @relation(fields: [legajoId], references: [id])
+  empresaId             String // denormalizado para conveniencia de consulta
+  empresa               Empresa              @relation(fields: [empresaId], references: [id])
+  fechaEgreso           DateTime
+  motivo                MotivoDesvinculacion
+  preavisoOtorgado      Boolean              @default(false)
+  estado                EstadoEvento         @default(BORRADOR)
+  resultadoJson         Json // desglose completo: base, tope, piso, preaviso, etc.
+  montoTotal            Decimal              @db.Decimal(14, 2)
+  calculadoPorUsuarioId String
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  beneficiarios BeneficiarioFallecimiento[]
+  falMovimiento FalMovimiento?
+
+  @@index([legajoId])
+  @@index([empresaId])
+}
+
+enum VinculoBeneficiario {
+  CONYUGE_CONVIVIENTE
+  HIJO_MENOR
+  HIJO_DISCAPACITADO
+  PADRE_MADRE
+}
+
+model BeneficiarioFallecimiento {
+  id                     String               @id @default(cuid())
+  eventoDesvinculacionId String
+  evento                 EventoDesvinculacion @relation(fields: [eventoDesvinculacionId], references: [id], onDelete: Cascade)
+  nombre                 String
+  vinculo                VinculoBeneficiario
+  montoAsignado          Decimal              @db.Decimal(14, 2)
+}
+
+// ---------- Fondo de Asistencia Laboral (Título II, Ley 27.802) ----------
+
+model FalCuenta {
+  id          String   @id @default(cuid())
+  empresaId   String   @unique
+  empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  fechaAlta   DateTime // >= 2026-11-01 (Decreto 408/2026); desde acá se cuenta la carencia de 6 meses
+  saldoActual Decimal  @default(0) @db.Decimal(14, 2) // cache denormalizado, recalculable desde movimientos
+  createdAt   DateTime @default(now())
+
+  movimientos FalMovimiento[]
+}
+
+enum TipoMovimientoFal {
+  CONTRIBUCION_MENSUAL
+  RETIRO_INDEMNIZACION
+  AJUSTE
+}
+
+model FalMovimiento {
+  id                     String                @id @default(cuid())
+  falCuentaId            String
+  falCuenta              FalCuenta             @relation(fields: [falCuentaId], references: [id], onDelete: Cascade)
+  tipo                   TipoMovimientoFal
+  periodoId              String?
+  periodo                PeriodoLiquidacion?   @relation(fields: [periodoId], references: [id])
+  eventoDesvinculacionId String?               @unique
+  evento                 EventoDesvinculacion? @relation(fields: [eventoDesvinculacionId], references: [id])
+  monto                  Decimal               @db.Decimal(14, 2) // positivo=crédito, negativo=débito
+  saldoResultante        Decimal               @db.Decimal(14, 2)
+  fecha                  DateTime
+  descripcion            String?
+  createdAt              DateTime              @default(now())
+
+  @@index([falCuentaId])
+}
+
+// ---------- Auditoría ----------
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  usuarioId   String
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id])
+  accion      String // "LIQUIDACION_CONFIRMADA", "TASA_ACTUALIZADA", etc.
+  entidad     String
+  entidadId   String
+  detalleJson Json
+  createdAt   DateTime @default(now())
+
+  @@index([usuarioId])
+  @@index([entidad, entidadId])
+}
