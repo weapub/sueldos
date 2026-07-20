@@ -8,7 +8,7 @@ export default function NuevaEmpresaPage() {
         <h1 className="text-2xl font-semibold">Nueva empresa</h1>
         <p className="text-sm text-muted-foreground">Alta de un nuevo cliente del estudio.</p>
       </div>
-      <EmpresaForm action={crearEmpresa} redirectOnSuccess={(r) => (r.ok ? `/empresas/${r.data.id}` : "/empresas")} />
+      <EmpresaForm action={crearEmpresa} />
     </div>
   );
 }

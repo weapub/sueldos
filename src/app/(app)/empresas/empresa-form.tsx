@@ -27,11 +27,9 @@ type Empresa = {
 export function EmpresaForm({
   action,
   empresa,
-  redirectOnSuccess,
 }: {
   action: (prevState: unknown, formData: FormData) => Promise<ActionResult<{ id: string }> | ActionResult>;
   empresa?: Empresa;
-  redirectOnSuccess?: (result: ActionResult<{ id: string }>) => string;
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState<ActionResult<{ id: string }> | ActionResult | null, FormData>(
@@ -43,15 +41,15 @@ export function EmpresaForm({
     if (!state) return;
     if (state.ok) {
       toast.success("Guardado correctamente.");
-      if (redirectOnSuccess) {
-        router.push(redirectOnSuccess(state as ActionResult<{ id: string }>));
+      if (!empresa && "data" in state && state.data?.id) {
+        router.push(`/empresas/${state.data.id}`);
       } else {
         router.refresh();
       }
     } else {
       toast.error(state.error);
     }
-  }, [state, redirectOnSuccess, router]);
+  }, [state, empresa, router]);
 
   return (
     <form action={formAction} className="space-y-4 max-w-lg">
