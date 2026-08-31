@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
-import { ConceptoManualDialog } from "../agregar-concepto-dialog";
+import { ConceptoManualDialog, type BasesCalculo } from "../agregar-concepto-dialog";
 
 type CatalogoItem = { id: string; nombre: string; requiereConsentimiento: boolean };
 
@@ -24,6 +24,8 @@ export type ConceptoManualFila = {
   nombre: string;
   monto: string;
   consentimientoFirmado: boolean;
+  porcentaje?: string;
+  baseCalculo?: "REMUNERATIVO" | "NO_REMUNERATIVO" | "HABERES" | "BASICO";
 };
 
 function fmt(n: unknown) {
@@ -34,10 +36,12 @@ export function ConceptosManualesPanel({
   liquidacionId,
   conceptos,
   catalogo,
+  bases,
 }: {
   liquidacionId: string;
   conceptos: ConceptoManualFila[];
   catalogo: CatalogoItem[];
+  bases: BasesCalculo;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -71,17 +75,30 @@ export function ConceptosManualesPanel({
           <TableBody>
             {conceptos.map((c) => (
               <TableRow key={c.indice}>
-                <TableCell>{c.nombre}</TableCell>
+                <TableCell>
+                  {c.nombre}
+                  {c.porcentaje && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {(Number(c.porcentaje) * 100).toLocaleString("es-AR", {
+                        maximumFractionDigits: 2,
+                      })}
+                      %
+                    </span>
+                  )}
+                </TableCell>
                 <TableCell className="text-right">{fmt(c.monto)}</TableCell>
                 <TableCell className="whitespace-nowrap text-right">
                   <ConceptoManualDialog
                     liquidacionId={liquidacionId}
                     catalogo={catalogo}
+                    bases={bases}
                     indice={c.indice}
                     inicial={{
                       conceptoDefinicionId: c.conceptoDefinicionId,
                       monto: c.monto,
                       consentimientoFirmado: c.consentimientoFirmado,
+                      porcentaje: c.porcentaje,
+                      baseCalculo: c.baseCalculo,
                     }}
                     trigger={
                       <Button variant="ghost" size="sm">
@@ -104,7 +121,7 @@ export function ConceptosManualesPanel({
           </TableBody>
         </Table>
       )}
-      <ConceptoManualDialog liquidacionId={liquidacionId} catalogo={catalogo} />
+      <ConceptoManualDialog liquidacionId={liquidacionId} catalogo={catalogo} bases={bases} />
     </div>
   );
 }

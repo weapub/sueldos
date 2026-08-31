@@ -107,7 +107,16 @@ export default async function PeriodoDetailPage({
                     <TableCell className="font-medium">{fmt(liq.neto)}</TableCell>
                     <TableCell>
                       {periodo.estado === "BORRADOR" && (
-                        <AgregarConceptoDialog liquidacionId={liq.id} catalogo={catalogo} />
+                        <AgregarConceptoDialog
+                          liquidacionId={liq.id}
+                          catalogo={catalogo}
+                          bases={{
+                            remunerativo: Number(liq.totalRemunerativo),
+                            noRemunerativo: Number(liq.totalNoRemunerativo),
+                            haberes: Number(liq.totalRemunerativo) + Number(liq.totalNoRemunerativo),
+                            basico: Number(liq.legajo.sueldoBasico),
+                          }}
+                        />
                       )}
                     </TableCell>
                   </TableRow>

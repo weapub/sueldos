@@ -70,6 +70,8 @@ export default async function ReciboPage({
         conceptoDefinicionId: string;
         monto: string;
         consentimientoFirmado?: boolean;
+        porcentaje?: string;
+        baseCalculo?: "REMUNERATIVO" | "NO_REMUNERATIVO" | "HABERES" | "BASICO";
       }[];
     })?.conceptosManuales ?? []
   ).map((c, i) => ({
@@ -78,7 +80,18 @@ export default async function ReciboPage({
     nombre: catalogo.find((d) => d.id === c.conceptoDefinicionId)?.nombre ?? "(concepto eliminado)",
     monto: String(c.monto),
     consentimientoFirmado: c.consentimientoFirmado ?? false,
+    porcentaje: c.porcentaje,
+    baseCalculo: c.baseCalculo,
   }));
+
+  const totalRem = Number(liquidacion.totalRemunerativo);
+  const totalNoRem = Number(liquidacion.totalNoRemunerativo);
+  const basesCalculo = {
+    remunerativo: totalRem,
+    noRemunerativo: totalNoRem,
+    haberes: totalRem + totalNoRem,
+    basico: Number(liquidacion.legajo.sueldoBasico),
+  };
 
   return (
     <div className="space-y-6">
@@ -193,6 +206,7 @@ export default async function ReciboPage({
               liquidacionId={liquidacion.id}
               conceptos={conceptosManuales}
               catalogo={catalogo}
+              bases={basesCalculo}
             />
           </CardContent>
         </Card>

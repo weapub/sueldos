@@ -100,6 +100,9 @@ interface ConceptoManualGuardado {
   cantidad?: string;
   montoUnitario?: string;
   consentimientoFirmado?: boolean;
+  /** Si el concepto se cargó como porcentaje: fracción (0.04 = 4%) y base sobre la que se calculó `monto`. */
+  porcentaje?: string;
+  baseCalculo?: "REMUNERATIVO" | "NO_REMUNERATIVO" | "HABERES" | "BASICO";
 }
 
 async function calcularYGuardarLiquidacionLegajo(params: {
@@ -182,6 +185,7 @@ async function calcularYGuardarLiquidacionLegajo(params: {
       monto: money(cm.monto),
       cantidad: cm.cantidad ? money(cm.cantidad) : undefined,
       montoUnitario: cm.montoUnitario ? money(cm.montoUnitario) : undefined,
+      porcentaje: cm.porcentaje ? money(cm.porcentaje) : undefined,
       afectaAportes: def.afectaAportes,
       afectaContribuciones: def.afectaContribuciones,
       afectaSAC: def.afectaSAC,
