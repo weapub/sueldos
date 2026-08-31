@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { agregarConceptoManual } from "@/actions/liquidaciones";
+import { agregarConceptoManual, editarConceptoManual } from "@/actions/liquidaciones";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,32 +26,54 @@ import { toast } from "sonner";
 
 type CatalogoItem = { id: string; nombre: string; requiereConsentimiento: boolean };
 
-export function AgregarConceptoDialog({
+export function ConceptoManualDialog({
   liquidacionId,
   catalogo,
+  indice,
+  inicial,
+  trigger,
 }: {
   liquidacionId: string;
   catalogo: CatalogoItem[];
+  /** Sin `indice` = agregar; con `indice` = editar esa posición de la lista de conceptos manuales. */
+  indice?: number;
+  inicial?: { conceptoDefinicionId: string; monto: string; consentimientoFirmado: boolean };
+  trigger?: ReactNode;
 }) {
   const router = useRouter();
+  const esEdicion = indice != null;
   const [open, setOpen] = useState(false);
-  const [conceptoId, setConceptoId] = useState<string>("");
-  const [monto, setMonto] = useState("");
-  const [consentimiento, setConsentimiento] = useState(false);
+  const [conceptoId, setConceptoId] = useState(inicial?.conceptoDefinicionId ?? "");
+  const [monto, setMonto] = useState(inicial?.monto ?? "");
+  const [consentimiento, setConsentimiento] = useState(inicial?.consentimientoFirmado ?? false);
   const [pending, startTransition] = useTransition();
 
   const conceptoSeleccionado = catalogo.find((c) => c.id === conceptoId);
 
+  function reset() {
+    setConceptoId(inicial?.conceptoDefinicionId ?? "");
+    setMonto(inicial?.monto ?? "");
+    setConsentimiento(inicial?.consentimientoFirmado ?? false);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) reset();
+      }}
+    >
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">
-          + Concepto
-        </Button>
+        {trigger ?? (
+          <Button variant="ghost" size="sm">
+            + Concepto
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Agregar concepto</DialogTitle>
+          <DialogTitle>{esEdicion ? "Editar concepto" : "Agregar concepto"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -71,7 +93,14 @@ export function AgregarConceptoDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="monto">Monto</Label>
-            <Input id="monto" type="number" step="0.01" min="0" value={monto} onChange={(e) => setMonto(e.target.value)} />
+            <Input
+              id="monto"
+              type="number"
+              step="0.01"
+              min="0"
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+            />
           </div>
           {conceptoSeleccionado?.requiereConsentimiento && (
             <div className="flex items-center gap-2">
@@ -91,17 +120,18 @@ export function AgregarConceptoDialog({
             disabled={pending || !conceptoId || !monto}
             onClick={() =>
               startTransition(async () => {
-                const result = await agregarConceptoManual(liquidacionId, {
+                const payload = {
                   conceptoDefinicionId: conceptoId,
                   monto,
                   consentimientoFirmado: consentimiento,
-                });
+                };
+                const result = esEdicion
+                  ? await editarConceptoManual(liquidacionId, indice, payload)
+                  : await agregarConceptoManual(liquidacionId, payload);
                 if (result.ok) {
-                  toast.success("Concepto agregado.");
+                  toast.success(esEdicion ? "Concepto actualizado." : "Concepto agregado.");
                   setOpen(false);
-                  setConceptoId("");
-                  setMonto("");
-                  setConsentimiento(false);
+                  if (!esEdicion) reset();
                   router.refresh();
                 } else {
                   toast.error(result.error);
@@ -109,10 +139,15 @@ export function AgregarConceptoDialog({
               })
             }
           >
-            {pending ? "Guardando..." : "Agregar"}
+            {pending ? "Guardando..." : esEdicion ? "Guardar" : "Agregar"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
+}
+
+/** Compat: botón de "+ Concepto" en la tabla del período. */
+export function AgregarConceptoDialog(props: { liquidacionId: string; catalogo: CatalogoItem[] }) {
+  return <ConceptoManualDialog {...props} />;
 }

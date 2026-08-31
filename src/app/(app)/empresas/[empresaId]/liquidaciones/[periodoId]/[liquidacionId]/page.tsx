@@ -1,8 +1,13 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireEmpresaAccess } from "@/lib/authz";
+import { listarCatalogoConceptos } from "@/actions/liquidaciones";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  ConceptosManualesPanel,
+  type ConceptoManualFila,
+} from "./conceptos-manuales-panel";
 import {
   Table,
   TableBody,
@@ -47,6 +52,33 @@ export default async function ReciboPage({
 
   const haberes = liquidacion.conceptos.filter((c) => c.conceptoDefinicion.tipo !== "DEDUCCION");
   const deducciones = liquidacion.conceptos.filter((c) => c.conceptoDefinicion.tipo === "DEDUCCION");
+
+  const editable = liquidacion.periodo.estado === "BORRADOR";
+  const catalogoResult = editable
+    ? await listarCatalogoConceptos(liquidacion.legajo.empresaId)
+    : null;
+  const catalogo = catalogoResult?.ok
+    ? catalogoResult.data.map((c) => ({
+        id: c.id,
+        nombre: c.nombre,
+        requiereConsentimiento: c.requiereConsentimiento,
+      }))
+    : [];
+  const conceptosManuales: ConceptoManualFila[] = (
+    (liquidacion.snapshotInputJson as {
+      conceptosManuales?: {
+        conceptoDefinicionId: string;
+        monto: string;
+        consentimientoFirmado?: boolean;
+      }[];
+    })?.conceptosManuales ?? []
+  ).map((c, i) => ({
+    indice: i,
+    conceptoDefinicionId: c.conceptoDefinicionId,
+    nombre: catalogo.find((d) => d.id === c.conceptoDefinicionId)?.nombre ?? "(concepto eliminado)",
+    monto: String(c.monto),
+    consentimientoFirmado: c.consentimientoFirmado ?? false,
+  }));
 
   return (
     <div className="space-y-6">
@@ -146,6 +178,25 @@ export default async function ReciboPage({
           </CardContent>
         </Card>
       </div>
+
+      {editable && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Conceptos manuales</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Agregá, editá o quitá conceptos cargados a mano. Al guardar se recalcula la
+              liquidación.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <ConceptosManualesPanel
+              liquidacionId={liquidacion.id}
+              conceptos={conceptosManuales}
+              catalogo={catalogo}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="grid grid-cols-2 gap-4 pt-6 sm:grid-cols-4">

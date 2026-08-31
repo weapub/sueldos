@@ -381,9 +381,13 @@ export async function calcularLiquidacionPeriodo(periodoId: string): Promise<Act
   }
 }
 
-export async function agregarConceptoManual(
+/**
+ * Reescribe los conceptos manuales de una liquidación (borrador) aplicando `mutar` a la
+ * lista actual, y recalcula. Base de agregar / editar / eliminar concepto manual.
+ */
+async function mutarConceptosManuales(
   liquidacionId: string,
-  concepto: ConceptoManualGuardado,
+  mutar: (actuales: ConceptoManualGuardado[]) => ConceptoManualGuardado[] | { error: string },
 ): Promise<ActionResult> {
   try {
     const liquidacion = await db.liquidacionMensual.findUniqueOrThrow({
@@ -392,11 +396,14 @@ export async function agregarConceptoManual(
     });
     const session = await requireEscritura(liquidacion.periodo.empresaId);
     if (liquidacion.periodo.estado !== "BORRADOR") {
-      return { ok: false, error: "El período ya fue confirmado, no se pueden agregar conceptos." };
+      return { ok: false, error: "El período ya fue confirmado, no se pueden modificar conceptos." };
     }
 
-    const existentes =
-      (liquidacion.snapshotInputJson as { conceptosManuales?: ConceptoManualGuardado[] })?.conceptosManuales ?? [];
+    const actuales =
+      (liquidacion.snapshotInputJson as { conceptosManuales?: ConceptoManualGuardado[] })
+        ?.conceptosManuales ?? [];
+    const resultado = mutar(actuales);
+    if (!Array.isArray(resultado)) return { ok: false, error: resultado.error };
 
     await calcularYGuardarLiquidacionLegajo({
       periodoId: liquidacion.periodoId,
@@ -405,14 +412,45 @@ export async function agregarConceptoManual(
       mes: liquidacion.periodo.mes,
       legajoId: liquidacion.legajoId,
       usuarioId: session.user.id,
-      conceptosManuales: [...existentes, concepto],
+      conceptosManuales: resultado,
     });
 
     revalidatePath(`/empresas/${liquidacion.periodo.empresaId}/liquidaciones/${liquidacion.periodoId}`);
+    revalidatePath(
+      `/empresas/${liquidacion.periodo.empresaId}/liquidaciones/${liquidacion.periodoId}/${liquidacionId}`,
+    );
     return { ok: true, data: undefined };
   } catch (err) {
-    return { ok: false, error: err instanceof AuthzError ? err.message : "Error al agregar el concepto." };
+    return { ok: false, error: err instanceof AuthzError ? err.message : "Error al guardar el concepto." };
   }
+}
+
+export async function agregarConceptoManual(
+  liquidacionId: string,
+  concepto: ConceptoManualGuardado,
+): Promise<ActionResult> {
+  return await mutarConceptosManuales(liquidacionId, (actuales) => [...actuales, concepto]);
+}
+
+export async function editarConceptoManual(
+  liquidacionId: string,
+  indice: number,
+  concepto: ConceptoManualGuardado,
+): Promise<ActionResult> {
+  return await mutarConceptosManuales(liquidacionId, (actuales) => {
+    if (indice < 0 || indice >= actuales.length) return { error: "Concepto no encontrado." };
+    return actuales.map((c, i) => (i === indice ? concepto : c));
+  });
+}
+
+export async function eliminarConceptoManual(
+  liquidacionId: string,
+  indice: number,
+): Promise<ActionResult> {
+  return await mutarConceptosManuales(liquidacionId, (actuales) => {
+    if (indice < 0 || indice >= actuales.length) return { error: "Concepto no encontrado." };
+    return actuales.filter((_, i) => i !== indice);
+  });
 }
 
 export async function confirmarPeriodo(periodoId: string): Promise<ActionResult> {
