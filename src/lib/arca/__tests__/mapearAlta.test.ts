@@ -17,7 +17,7 @@ const alta: AltaArcaExtraida = {
   empleadoApellidoNombreCrudo: "REJALA LUCAS ALEJANDRO",
   empleadoCuil: "20-41268735-4",
   fechaInicio: "2026-08-24",
-  fechaCese: null,
+  fechaCese: "",
   obraSocialCodigo: "125707",
   obraSocialNombre: "O.S. DEL PERSONAL CIVIL DE LA NACION",
   modalidadContratoCodigo: "008",
@@ -74,8 +74,8 @@ describe("mapearAltaALegajo", () => {
   it("parte el campo crudo cuando faltan apellido/nombres", () => {
     const l = mapearAltaALegajo({
       ...alta,
-      empleadoApellido: null,
-      empleadoNombres: null,
+      empleadoApellido: "",
+      empleadoNombres: "",
     });
     expect(l.apellido).toBe("REJALA");
     expect(l.nombre).toBe("LUCAS ALEJANDRO");
@@ -121,7 +121,7 @@ describe("matchCategoria", () => {
   it("devuelve null si el alta no trae categoría", () => {
     expect(
       matchCategoria(
-        { ...alta, categoriaDescripcion: null, categoriaCodigo: null },
+        { ...alta, categoriaDescripcion: "", categoriaCodigo: "" },
         [{ id: "c1", nombre: "Categoria A - Maestranza y Servicios" }],
       ),
     ).toBeNull();

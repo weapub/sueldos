@@ -4,52 +4,53 @@ import { z } from "zod";
  * Campos de la "Constancia del Trabajador – Alta" que emite ARCA (ex AFIP) por la
  * Simplificación Registral. Se extraen con visión (ver `extraerAlta.ts`).
  *
- * TODOS los campos son `.nullable()`: la constancia suele venir escaneada, rotada y
- * con baja calidad, así que cualquier campo puede resultar ilegible. El consumidor
- * (`mapearAlta.ts`) tiene que tolerar `null` en todos.
+ * NINGÚN campo es `.nullable()`: la API de Structured Outputs limita a 16 los campos
+ * con tipos unión (`anyOf`), y acá hay ~28 campos. En su lugar, el modelo devuelve
+ * cadena vacía `""` (o `0` en montos) cuando algo es ilegible; el mapeo
+ * (`mapearAlta.ts`) trata `""` / `0` como "sin dato".
  */
 export const altaArcaExtraidaSchema = z.object({
   // Cabecera – empleador
-  empleadorCuit: z.string().nullable(),
-  empleadorRazonSocial: z.string().nullable(),
+  empleadorCuit: z.string(),
+  empleadorRazonSocial: z.string(),
 
   // Datos del empleado
-  empleadoApellido: z.string().nullable(),
-  empleadoNombres: z.string().nullable(),
-  empleadoApellidoNombreCrudo: z.string().nullable(),
-  empleadoCuil: z.string().nullable(),
+  empleadoApellido: z.string(),
+  empleadoNombres: z.string(),
+  empleadoApellidoNombreCrudo: z.string(),
+  empleadoCuil: z.string(),
 
-  fechaInicio: z.string().nullable(), // ISO YYYY-MM-DD
-  fechaCese: z.string().nullable(),
+  fechaInicio: z.string(), // ISO YYYY-MM-DD, o "" si ilegible
+  fechaCese: z.string(),
 
-  obraSocialCodigo: z.string().nullable(),
-  obraSocialNombre: z.string().nullable(),
+  obraSocialCodigo: z.string(),
+  obraSocialNombre: z.string(),
 
-  modalidadContratoCodigo: z.string().nullable(), // ej. "008"
-  modalidadContratoDescripcion: z.string().nullable(),
+  modalidadContratoCodigo: z.string(), // ej. "008"
+  modalidadContratoDescripcion: z.string(),
 
-  situacionRevistaCodigo: z.string().nullable(), // ej. "01"
-  regimen: z.string().nullable(), // ej. "SIPA"
+  situacionRevistaCodigo: z.string(), // ej. "01"
+  regimen: z.string(), // ej. "SIPA"
 
-  convenioCodigo: z.string().nullable(), // ej. "0130/75"
-  convenioDescripcion: z.string().nullable(),
+  convenioCodigo: z.string(), // ej. "0130/75"
+  convenioDescripcion: z.string(),
 
-  categoriaCodigo: z.string().nullable(), // ej. "007511"
-  categoriaDescripcion: z.string().nullable(), // ej. "CATEGORIA A - MAESTRANZA Y SERVICIOS"
+  categoriaCodigo: z.string(), // ej. "007511"
+  categoriaDescripcion: z.string(), // ej. "CATEGORIA A - MAESTRANZA Y SERVICIOS"
 
-  puestoCodigo: z.string().nullable(), // ej. "5220"
-  puestoDescripcion: z.string().nullable(),
+  puestoCodigo: z.string(), // ej. "5220"
+  puestoDescripcion: z.string(),
 
-  remuneracionPactada: z.number().nullable(), // número plano, sin separador de miles
-  modalidadLiquidacion: z.string().nullable(), // ej. "1 - MES"
+  remuneracionPactada: z.number(), // número plano sin separador de miles; 0 si ilegible
+  modalidadLiquidacion: z.string(), // ej. "1 - MES"
 
-  domicilioExplotacion: z.string().nullable(),
-  codigoPostal: z.string().nullable(),
-  localidad: z.string().nullable(),
-  provincia: z.string().nullable(),
+  domicilioExplotacion: z.string(),
+  codigoPostal: z.string(),
+  localidad: z.string(),
+  provincia: z.string(),
 
-  actividadEconomicaCodigo: z.string().nullable(), // ej. "472112"
-  actividadEconomicaDescripcion: z.string().nullable(),
+  actividadEconomicaCodigo: z.string(), // ej. "472112"
+  actividadEconomicaDescripcion: z.string(),
 });
 
 export type AltaArcaExtraida = z.infer<typeof altaArcaExtraidaSchema>;

@@ -32,8 +32,10 @@ Reglas:
 - Montos: número plano sin símbolo ni separador de miles (1300000, no "$1.300.000,00").
 - "Apellido y nombre": separá en empleadoApellido (apellido/s) y empleadoNombres (nombres),
   y copiá el texto tal cual en empleadoApellidoNombreCrudo.
-- Cualquier campo que no puedas leer con confianza (borroso, cortado, tapado): devolvé null.
-- Si la imagen NO es una constancia de alta de ARCA, devolvé null en todos los campos.`;
+- Cualquier campo de texto que no puedas leer con confianza (borroso, cortado, tapado):
+  devolvé cadena vacía "". En remuneracionPactada devolvé 0.
+- Si la imagen NO es una constancia de alta de ARCA, devolvé "" en todos los campos de
+  texto y 0 en remuneracionPactada.`;
 
 function bloqueDocumento(
   base64: string,
@@ -87,7 +89,7 @@ export async function extraerAltaArca(input: {
             bloqueDocumento(base64, input.mediaType),
             {
               type: "text",
-              text: "Extraé los campos del alta según las reglas. Devolvé null en lo que no puedas leer.",
+              text: 'Extraé los campos del alta según las reglas. Usá "" (o 0 en el monto) en lo que no puedas leer.',
             },
           ],
         },
@@ -109,7 +111,9 @@ export async function extraerAltaArca(input: {
     );
   }
 
-  const tieneAlgo = Object.values(parsed).some((v) => v !== null && v !== "");
+  const tieneAlgo = Object.values(parsed).some((v) =>
+    typeof v === "string" ? v.trim() !== "" : typeof v === "number" ? v !== 0 : v != null,
+  );
   if (!tieneAlgo) {
     throw new AltaArcaError(
       "La imagen no parece una constancia de alta de ARCA. Revisá el archivo.",
