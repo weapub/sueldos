@@ -38,8 +38,41 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deploy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Producción corre con Docker Compose en el VPS (`docker-compose.yml`, red externa `systeg`).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Autodeploy (GitHub Actions)
+
+`.github/workflows/deploy.yml` corre en cada push/PR a `main`:
+
+1. **checks** — `npm ci`, `prisma generate`, `lint`, `tsc --noEmit`, `test`, `build`.
+2. **deploy** (solo push a `main`, si pasan los checks) — se conecta por SSH al VPS y ejecuta,
+   en `DEPLOY_PATH`: `git reset --hard origin/main` → `docker compose --profile tools build` →
+   `docker compose run --rm migrate-sueldos` (`prisma migrate deploy`) → `docker compose up -d api-sueldos`.
+
+Configurar en el repo (Settings → Secrets and variables → Actions):
+
+| Tipo | Nombre | Valor |
+| --- | --- | --- |
+| Variable | `DEPLOY_PATH` | Ruta del repo en el VPS (ej. `/opt/sueldos`). |
+| Secret | `SSH_HOST` | IP o host del VPS. |
+| Secret | `SSH_USER` | Usuario SSH (con permiso de `docker compose`). |
+| Secret | `SSH_KEY` | Clave privada SSH (la pública va en `~/.ssh/authorized_keys` del VPS). |
+| Secret | `SSH_PORT` | Opcional, default `22`. |
+
+Requisitos en el VPS: el repo clonado en `DEPLOY_PATH` con `origin` apuntando a GitHub y `.env`
+presente; `git`, `docker` y `docker compose` disponibles para `SSH_USER`. Conviene crear el
+environment `production` en GitHub y, si se quiere, exigir aprobación manual antes del deploy.
+
+Para dejar el VPS listo de una: `DEPLOY_PATH=/opt/sueldos bash scripts/deploy-bootstrap.sh`
+(clona el repo, genera un `.env` inicial, crea la red `systeg` y hace el primer build + migración).
+
+### Deploy manual
+
+```bash
+git pull
+docker compose --profile tools build
+docker compose run --rm migrate-sueldos
+docker compose up -d api-sueldos
+```
