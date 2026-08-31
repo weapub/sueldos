@@ -34,6 +34,9 @@ export function CategoriaForm({
     if (!state) return;
     if (state.ok) {
       toast.success("Categoría creada.");
+      // Reset del formulario tras el alta: es un one-shot después del round-trip al
+      // servidor, no un loop de renders — la regla no aplica en la práctica.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCampos(CAMPOS_VACIOS);
       router.refresh();
     } else {
