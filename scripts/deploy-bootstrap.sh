@@ -4,14 +4,17 @@
 # Deja el repo clonado en DEPLOY_PATH, un .env inicial y valida docker / red externa.
 #
 # Uso:
-#   DEPLOY_PATH=/opt/sueldos REPO_URL=https://github.com/weapub/sueldos.git \
+#   DEPLOY_PATH=/opt/sueldos/repo REPO_URL=https://github.com/weapub/sueldos.git \
 #     bash scripts/deploy-bootstrap.sh
 #
 # Idempotente: se puede volver a correr sin romper nada.
+#
+# IMPORTANTE: DEPLOY_PATH es la carpeta del REPO, nunca una que contenga el volumen
+# de datos de Postgres. Este script no hace `chown` recursivo en ningún caso.
 
 set -euo pipefail
 
-DEPLOY_PATH="${DEPLOY_PATH:-/opt/sueldos}"
+DEPLOY_PATH="${DEPLOY_PATH:-/opt/sueldos/repo}"
 REPO_URL="${REPO_URL:-https://github.com/weapub/sueldos.git}"
 BRANCH="${BRANCH:-main}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-systeg}"
@@ -45,8 +48,12 @@ if [ -d "${DEPLOY_PATH}/.git" ]; then
   git -C "${DEPLOY_PATH}" checkout "${BRANCH}"
   git -C "${DEPLOY_PATH}" reset --hard "origin/${BRANCH}"
 else
-  sudo mkdir -p "$(dirname "${DEPLOY_PATH}")"
-  sudo chown "$(id -u):$(id -g)" "$(dirname "${DEPLOY_PATH}")"
+  PARENT="$(dirname "${DEPLOY_PATH}")"
+  if [ ! -d "${PARENT}" ]; then
+    echo "No existe ${PARENT}. Creala con permisos para este usuario y volvé a correr:"
+    echo "  sudo install -d -o \"\$USER\" -g \"\$USER\" \"${PARENT}\""
+    exit 1
+  fi
   git clone --branch "${BRANCH}" "${REPO_URL}" "${DEPLOY_PATH}"
 fi
 

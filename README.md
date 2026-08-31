@@ -55,7 +55,7 @@ Configurar en el repo (Settings → Secrets and variables → Actions):
 
 | Tipo | Nombre | Valor |
 | --- | --- | --- |
-| Variable | `DEPLOY_PATH` | Ruta del repo en el VPS (ej. `/opt/sueldos`). |
+| Variable | `DEPLOY_PATH` | Ruta del **repo** en el VPS (ej. `/opt/sueldos/repo`). Nunca una carpeta que contenga el volumen de datos de Postgres. |
 | Secret | `SSH_HOST` | IP o host del VPS. |
 | Secret | `SSH_USER` | Usuario SSH (con permiso de `docker compose`). |
 | Secret | `SSH_KEY` | Clave privada SSH (la pública va en `~/.ssh/authorized_keys` del VPS). |
@@ -65,7 +65,7 @@ Requisitos en el VPS: el repo clonado en `DEPLOY_PATH` con `origin` apuntando a 
 presente; `git`, `docker` y `docker compose` disponibles para `SSH_USER`. Conviene crear el
 environment `production` en GitHub y, si se quiere, exigir aprobación manual antes del deploy.
 
-Para dejar el VPS listo de una: `DEPLOY_PATH=/opt/sueldos bash scripts/deploy-bootstrap.sh`
+Para dejar el VPS listo de una: `DEPLOY_PATH=/opt/sueldos/repo bash scripts/deploy-bootstrap.sh`
 (clona el repo, genera un `.env` inicial, crea la red `systeg` y hace el primer build + migración).
 
 ### Deploy manual
