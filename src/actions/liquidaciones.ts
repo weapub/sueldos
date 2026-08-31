@@ -322,6 +322,7 @@ async function calcularYGuardarLiquidacionLegajo(params: {
           cantidad: c.cantidad?.toString(),
           montoUnitario: c.montoUnitario?.toString(),
           monto: c.montoAjustado.toString(),
+          porcentaje: c.porcentaje?.toString(),
           consentimientoFirmado: c.consentimientoFirmado,
           orden: orden++,
         },

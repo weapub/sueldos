@@ -27,6 +27,8 @@ export interface ConceptoInput {
   monto: Money;
   cantidad?: Money;
   montoUnitario?: Money;
+  /** Alícuota que da origen al monto (fracción, ej. 0.11 = 11%). Solo para deducciones porcentuales; se muestra en el recibo. */
+  porcentaje?: Money;
   afectaAportes: boolean;
   afectaContribuciones: boolean;
   /** Cuenta para la "mejor remuneración" usada en SAC e indemnización (art. 245). */

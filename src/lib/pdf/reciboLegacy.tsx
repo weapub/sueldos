@@ -31,6 +31,13 @@ function fmt(value: string | number) {
   return `$${Number(value).toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
 }
 
+function pctSuffix(porcentaje?: string | number | null) {
+  if (porcentaje == null) return "";
+  const v = Number(porcentaje);
+  if (!Number.isFinite(v) || v === 0) return "";
+  return ` (${(v * 100).toLocaleString("es-AR", { maximumFractionDigits: 2 })}%)`;
+}
+
 const MESES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
@@ -41,7 +48,12 @@ export interface ReciboLegacyPdfData {
   legajo: { nombre: string; apellido: string; cuil: string; categoria: string };
   periodo: { anio: number; mes: number };
   diasTrabajados: number;
-  conceptos: { descripcion: string; monto: string; esDeduccion: boolean }[];
+  conceptos: {
+    descripcion: string;
+    monto: string;
+    esDeduccion: boolean;
+    porcentaje?: string | null;
+  }[];
   totalRemunerativo: string;
   totalNoRemunerativo: string;
   totalDeducciones: string;
@@ -112,7 +124,10 @@ function ReciboLegacyDocument({ data }: { data: ReciboLegacyPdfData }) {
           </View>
           {deducciones.map((c, i) => (
             <View style={styles.tableRow} key={i}>
-              <Text style={styles.colConcepto}>{c.descripcion}</Text>
+              <Text style={styles.colConcepto}>
+                {c.descripcion}
+                {pctSuffix(c.porcentaje)}
+              </Text>
               <Text style={styles.colMonto}>{fmt(c.monto)}</Text>
             </View>
           ))}

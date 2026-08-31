@@ -21,6 +21,13 @@ function fmt(n: unknown) {
   return `$${Number(n).toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
 }
 
+function pct(n: unknown): string | null {
+  if (n == null) return null;
+  const v = Number(n);
+  if (!Number.isFinite(v) || v === 0) return null;
+  return `${(v * 100).toLocaleString("es-AR", { maximumFractionDigits: 2 })}%`;
+}
+
 export default async function ReciboPage({
   params,
 }: {
@@ -123,7 +130,14 @@ export default async function ReciboPage({
               <TableBody>
                 {deducciones.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell>{c.descripcion}</TableCell>
+                    <TableCell>
+                      {c.descripcion}
+                      {pct(c.porcentaje) && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {pct(c.porcentaje)}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">{fmt(c.monto)}</TableCell>
                   </TableRow>
                 ))}

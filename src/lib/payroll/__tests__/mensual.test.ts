@@ -409,6 +409,17 @@ describe("caso de regresión GONZALEZ IVAN (GONZALEZ.xlsm, legajo 3, período JU
     expect(ips?.montoAjustado.toFixed(2)).toBe(resultado.totalRemunerativo.times("0.01").toFixed(2));
   });
 
+  it("cada deducción porcentual expone su alícuota en `porcentaje`", () => {
+    const porCodigo = Object.fromEntries(
+      resultado.conceptos.map((c) => [c.codigo, c.porcentaje?.toNumber() ?? null]),
+    );
+    expect(porCodigo["APORTES"]).toBeCloseTo(0.2, 5); // jub 11 + pami 3 + os 6
+    expect(porCodigo["30004"]).toBeCloseTo(0.04, 5); // sindicato
+    expect(porCodigo["30005"]).toBeCloseTo(0.005, 5); // FAECYS
+    expect(porCodigo["30010"]).toBeCloseTo(0.01, 5); // IPS FSA
+    expect(porCodigo["30006"]).toBeNull(); // aporte solidario: monto fijo, sin %
+  });
+
   it("neto = 528.408,73", () => {
     expect(resultado.neto.toFixed(2)).toBe("528408.73");
   });

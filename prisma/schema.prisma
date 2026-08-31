@@ -344,6 +344,7 @@ model ConceptoLiquidacion {
   cantidad              Decimal?           @db.Decimal(8, 2)
   montoUnitario         Decimal?           @db.Decimal(14, 2)
   monto                 Decimal            @db.Decimal(14, 2) // sin signo; el signo se deriva del tipo al agregar
+  porcentaje            Decimal?           @db.Decimal(8, 5) // alícuota que se muestra junto a la deducción (0.11000 = 11%); NULL si no aplica
   consentimientoFirmado Boolean            @default(false)
   orden                 Int                @default(0)
 

@@ -248,6 +248,7 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
     tipo: "DEDUCCION",
     monto: montoAportes,
     montoAjustado: montoAportes,
+    porcentaje: tasaAportesTotal,
     afectaAportes: false,
     afectaContribuciones: false,
     afectaSAC: false,
@@ -265,6 +266,7 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
     nombre: string,
     monto: Money,
     subtipo: ConceptoInput["subtipo"],
+    porcentaje?: Money,
   ): ConceptoInput => ({
     id,
     codigo: id,
@@ -272,6 +274,7 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
     tipo: "DEDUCCION",
     subtipo,
     monto,
+    porcentaje,
     afectaAportes: false,
     afectaContribuciones: false,
     afectaSAC: false,
@@ -283,17 +286,17 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
   if (aplicaReglasConvenio || tieneNoRemunerativo) {
     if (input.tasas.contribSindical.gt(0)) {
       deduccionesConvenio.push(
-        nuevaDeduccion("30004", "Sindicato", round2(totalRemunerativo.times(input.tasas.contribSindical)), "SINDICAL"),
+        nuevaDeduccion("30004", "Sindicato", round2(totalRemunerativo.times(input.tasas.contribSindical)), "SINDICAL", input.tasas.contribSindical),
       );
     }
     if (input.tasas.deduccionFaecys.gt(0)) {
       deduccionesConvenio.push(
-        nuevaDeduccion("30005", "FAECYS", round2(totalRemunerativo.times(input.tasas.deduccionFaecys)), "SINDICAL"),
+        nuevaDeduccion("30005", "FAECYS", round2(totalRemunerativo.times(input.tasas.deduccionFaecys)), "SINDICAL", input.tasas.deduccionFaecys),
       );
     }
     if (input.tasas.deduccionAporteProvincial.gt(0)) {
       deduccionesConvenio.push(
-        nuevaDeduccion("30010", "Aporte previsional provincial", round2(totalRemunerativo.times(input.tasas.deduccionAporteProvincial)), undefined),
+        nuevaDeduccion("30010", "Aporte previsional provincial", round2(totalRemunerativo.times(input.tasas.deduccionAporteProvincial)), undefined, input.tasas.deduccionAporteProvincial),
       );
     }
     if (input.tasas.aporteSolidarioFijo.gt(0)) {
@@ -302,17 +305,17 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
     if (tieneNoRemunerativo) {
       if (input.tasas.aporteObraSocial.gt(0)) {
         deduccionesConvenio.push(
-          nuevaDeduccion("30007", "Obra social no remunerativo", round2(totalNoRemunerativo.times(input.tasas.aporteObraSocial)), undefined),
+          nuevaDeduccion("30007", "Obra social no remunerativo", round2(totalNoRemunerativo.times(input.tasas.aporteObraSocial)), undefined, input.tasas.aporteObraSocial),
         );
       }
       if (input.tasas.contribSindical.gt(0)) {
         deduccionesConvenio.push(
-          nuevaDeduccion("30008", "Sindicato no remunerativo", round2(totalNoRemunerativo.times(input.tasas.contribSindical)), "SINDICAL"),
+          nuevaDeduccion("30008", "Sindicato no remunerativo", round2(totalNoRemunerativo.times(input.tasas.contribSindical)), "SINDICAL", input.tasas.contribSindical),
         );
       }
       if (input.tasas.deduccionFaecys.gt(0)) {
         deduccionesConvenio.push(
-          nuevaDeduccion("30009", "FAECYS no remunerativo", round2(totalNoRemunerativo.times(input.tasas.deduccionFaecys)), "SINDICAL"),
+          nuevaDeduccion("30009", "FAECYS no remunerativo", round2(totalNoRemunerativo.times(input.tasas.deduccionFaecys)), "SINDICAL", input.tasas.deduccionFaecys),
         );
       }
     }

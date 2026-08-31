@@ -82,6 +82,14 @@ function fmt(value: string | number) {
   return `$${Number(value).toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
 }
 
+/** Sufijo " (11%)" para una alícuota expresada como fracción; "" si no aplica. */
+function pctSuffix(porcentaje?: string | number | null) {
+  if (porcentaje == null) return "";
+  const v = Number(porcentaje);
+  if (!Number.isFinite(v) || v === 0) return "";
+  return ` (${(v * 100).toLocaleString("es-AR", { maximumFractionDigits: 2 })}%)`;
+}
+
 const MESES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
@@ -117,7 +125,12 @@ export interface ReciboPdfData {
     ultimoDepositoAportesFecha?: string | null;
   };
   diasTrabajados: number;
-  conceptos: { descripcion: string; monto: string; esDeduccion: boolean }[];
+  conceptos: {
+    descripcion: string;
+    monto: string;
+    esDeduccion: boolean;
+    porcentaje?: string | null;
+  }[];
   contribucionesPatronales: { descripcion: string; monto: string; rubro: string | null }[];
   totalRemunerativo: string;
   totalNoRemunerativo: string;
@@ -264,7 +277,10 @@ function ReciboMitad({
         <Text style={{ fontSize: 4.8, fontWeight: 700, marginTop: 1 }}>Deducciones</Text>
         {deducciones.map((c, i) => (
           <View style={styles.tableRow} key={i}>
-            <Text style={styles.colConcepto}>{c.descripcion}</Text>
+            <Text style={styles.colConcepto}>
+              {c.descripcion}
+              {pctSuffix(c.porcentaje)}
+            </Text>
             <Text style={styles.colMonto}>{fmt(c.monto)}</Text>
           </View>
         ))}
