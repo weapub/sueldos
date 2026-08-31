@@ -15,18 +15,43 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { ActionResult } from "@/actions/empresas";
+import type { LegajoDesdeAlta } from "@/lib/arca/mapearAlta";
 
 export function LegajoForm({
   empresaId,
   categorias,
   action,
+  valoresIniciales,
+  categoriaIdSugerida,
+  notaCategoria,
 }: {
   empresaId: string;
   categorias: { id: string; nombre: string }[];
   action: (prevState: unknown, formData: FormData) => Promise<ActionResult<{ id: string }>>;
+  valoresIniciales?: LegajoDesdeAlta;
+  categoriaIdSugerida?: string | null;
+  notaCategoria?: string | null;
 }) {
   const router = useRouter();
   const [regimenRIFL, setRegimenRIFL] = useState(false);
+  const [campos, setCampos] = useState({
+    cuil: valoresIniciales?.cuil ?? "",
+    nombre: valoresIniciales?.nombre ?? "",
+    apellido: valoresIniciales?.apellido ?? "",
+    fechaIngreso: valoresIniciales?.fechaIngreso ?? "",
+    sueldoBasico: valoresIniciales?.sueldoBasico ?? "",
+    obraSocial: valoresIniciales?.obraSocial ?? "",
+  });
+  const [tipoContrato, setTipoContrato] = useState<string>(
+    valoresIniciales?.tipoContrato ?? "TIEMPO_INDETERMINADO",
+  );
+  const [modalidadRemuneracion, setModalidadRemuneracion] = useState<string>(
+    valoresIniciales?.modalidadRemuneracion ?? "MENSUAL",
+  );
+  const [categoriaId, setCategoriaId] = useState<string | undefined>(
+    categoriaIdSugerida ?? categorias[0]?.id,
+  );
+
   const [state, formAction, pending] = useActionState<ActionResult<{ id: string }> | null, FormData>(
     async (prevState, formData) => action(prevState, formData),
     null,
@@ -42,6 +67,10 @@ export function LegajoForm({
     }
   }, [state, router, empresaId]);
 
+  function set<K extends keyof typeof campos>(k: K, v: string) {
+    setCampos((c) => ({ ...c, [k]: v }));
+  }
+
   return (
     <form action={formAction} className="max-w-2xl space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -51,15 +80,34 @@ export function LegajoForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="cuil">CUIL</Label>
-          <Input id="cuil" name="cuil" placeholder="20-12345678-9" required />
+          <Input
+            id="cuil"
+            name="cuil"
+            placeholder="20-12345678-9"
+            value={campos.cuil}
+            onChange={(e) => set("cuil", e.target.value)}
+            required
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="nombre">Nombre</Label>
-          <Input id="nombre" name="nombre" required />
+          <Input
+            id="nombre"
+            name="nombre"
+            value={campos.nombre}
+            onChange={(e) => set("nombre", e.target.value)}
+            required
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="apellido">Apellido</Label>
-          <Input id="apellido" name="apellido" required />
+          <Input
+            id="apellido"
+            name="apellido"
+            value={campos.apellido}
+            onChange={(e) => set("apellido", e.target.value)}
+            required
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="fechaNacimiento">Fecha de nacimiento</Label>
@@ -67,13 +115,20 @@ export function LegajoForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="fechaIngreso">Fecha de ingreso</Label>
-          <Input id="fechaIngreso" name="fechaIngreso" type="date" required />
+          <Input
+            id="fechaIngreso"
+            name="fechaIngreso"
+            type="date"
+            value={campos.fechaIngreso}
+            onChange={(e) => set("fechaIngreso", e.target.value)}
+            required
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="categoriaId">Categoría</Label>
-          <Select name="categoriaId" defaultValue={categorias[0]?.id}>
+          <Select name="categoriaId" value={categoriaId} onValueChange={setCategoriaId}>
             <SelectTrigger id="categoriaId" className="w-full">
-              <SelectValue />
+              <SelectValue placeholder="Elegí una categoría..." />
             </SelectTrigger>
             <SelectContent>
               {categorias.map((cat) => (
@@ -83,10 +138,13 @@ export function LegajoForm({
               ))}
             </SelectContent>
           </Select>
+          {notaCategoria && (
+            <p className="text-xs text-amber-600 dark:text-amber-500">{notaCategoria}</p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="tipoContrato">Tipo de contrato</Label>
-          <Select name="tipoContrato" defaultValue="TIEMPO_INDETERMINADO">
+          <Select name="tipoContrato" value={tipoContrato} onValueChange={setTipoContrato}>
             <SelectTrigger id="tipoContrato" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -101,7 +159,11 @@ export function LegajoForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="modalidadRemuneracion">Modalidad de remuneración</Label>
-          <Select name="modalidadRemuneracion" defaultValue="MENSUAL">
+          <Select
+            name="modalidadRemuneracion"
+            value={modalidadRemuneracion}
+            onValueChange={setModalidadRemuneracion}
+          >
             <SelectTrigger id="modalidadRemuneracion" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -114,7 +176,16 @@ export function LegajoForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="sueldoBasico">Sueldo básico</Label>
-          <Input id="sueldoBasico" name="sueldoBasico" type="number" step="0.01" min="0" required />
+          <Input
+            id="sueldoBasico"
+            name="sueldoBasico"
+            type="number"
+            step="0.01"
+            min="0"
+            value={campos.sueldoBasico}
+            onChange={(e) => set("sueldoBasico", e.target.value)}
+            required
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="horasSemanales">Horas semanales contratadas (part-time)</Label>
@@ -133,7 +204,12 @@ export function LegajoForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="obraSocial">Obra social (opcional)</Label>
-          <Input id="obraSocial" name="obraSocial" />
+          <Input
+            id="obraSocial"
+            name="obraSocial"
+            value={campos.obraSocial}
+            onChange={(e) => set("obraSocial", e.target.value)}
+          />
         </div>
       </div>
 

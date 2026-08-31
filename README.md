@@ -1,5 +1,14 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Variables de entorno
+
+| Variable | Requerida | Descripción |
+| --- | --- | --- |
+| `DATABASE_URL` | Sí | Conexión PostgreSQL (Prisma). |
+| `AUTH_SECRET` | Sí | Secreto de NextAuth. |
+| `ANTHROPIC_API_KEY` | No | Habilita el import de altas de ARCA (foto/PDF → datos) en *Nuevo legajo*. Sin esta variable, el panel de import no aparece y la carga manual sigue funcionando. |
+| `ARCA_OCR_MODEL` | No | Modelo usado para leer el alta. Default `claude-opus-5`; se puede bajar a `claude-sonnet-5` o `claude-haiku-4-5` para reducir costo. |
+
 ## Getting Started
 
 First, run the development server:
