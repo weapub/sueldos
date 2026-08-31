@@ -1,0 +1,64 @@
+name: CI & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Un solo deploy a la vez; si llega un push nuevo mientras corre, se encola (no se cancela).
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Lint · Types · Tests · Build
+    runs-on: ubuntu-latest
+    env:
+      # Prisma sólo necesita la variable presente para `generate` / `build`; no conecta.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run test
+      - run: npm run build
+
+  deploy:
+    name: Deploy al VPS
+    runs-on: ubuntu-latest
+    needs: checks
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - name: SSH · pull + build + migrate + restart
+        uses: appleboy/ssh-action@v1 # TODO: fijar a un SHA para blindar la cadena de suministro
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${{ vars.DEPLOY_PATH }}"
+
+            git fetch --prune origin
+            git checkout main
+            git reset --hard origin/main
+
+            # `migrate-sueldos` está bajo el profile "tools"; hay que nombrarlo para buildearlo.
+            docker compose --profile tools build
+            docker compose run --rm migrate-sueldos
+            docker compose up -d api-sueldos
+
+            docker image prune -f
