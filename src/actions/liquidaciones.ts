@@ -8,6 +8,10 @@ import { calcularLiquidacionMensual } from "@/lib/payroll/mensual";
 import { calcularContribucionMensualFAL } from "@/lib/payroll/fal";
 import { antiguedadEnAnios } from "@/lib/payroll/vacaciones";
 import { calcularAntiguedadImporte } from "@/lib/payroll/convenio";
+import {
+  CODIGOS_SINTETICOS,
+  conceptoSinteticoPorCodigo,
+} from "@/lib/payroll/conceptosSinteticos";
 import { money, sum, type Money } from "@/lib/payroll/money";
 import type { ConceptoInput } from "@/lib/payroll/types";
 
@@ -209,36 +213,59 @@ async function calcularYGuardarLiquidacionLegajo(params: {
     tasas,
   });
 
-  // Mapeo de conceptos sintéticos/de convenio (BASICO/SAC/APORTES/antigüedad/presentismo/
-  // espejo no remunerativo/deducciones de convenio) a ConceptoDefinicion global por código.
-  const codigosSinteticos = [
-    "BASICO",
-    "SAC",
-    "SAC_NR",
-    "APORTES",
-    "10002",
-    "10003",
-    "20001",
-    "20002",
-    "20003",
-    "30004",
-    "30005",
-    "30006",
-    "30007",
-    "30008",
-    "30009",
-    "30010",
-    "CP_JUBILACION",
-    "CP_LEY19032",
-    "CP_OBRA_SOCIAL",
-    "CP_ASIG_FAMILIARES",
-    "CP_FNE",
-    "CP_ART",
-    "CP_SVO",
-  ];
+  // Anclaje de cada línea que produjo el motor (BASICO/SAC/APORTES/antigüedad/presentismo/
+  // espejo no remunerativo/deducciones de convenio/contribuciones patronales) a un
+  // `ConceptoDefinicion` global por código. Los conceptos sintéticos que falten en el
+  // catálogo se autocrean desde `CONCEPTOS_SINTETICOS`: descartarlos en silencio dejaría el
+  // detalle del recibo sin una deducción/haber que ya está sumada en los totales
+  // (era el caso de "IPS FSA" cuando faltaba su fila de catálogo).
   const catalogoSintetico = await db.conceptoDefinicion.findMany({
-    where: { empresaId: null, codigo: { in: codigosSinteticos } },
+    where: { empresaId: null, codigo: { in: CODIGOS_SINTETICOS } },
   });
+  const sinteticoIdPorCodigo = new Map(catalogoSintetico.map((d) => [d.codigo, d.id] as const));
+
+  const idsManuales = new Set(conceptosDefinicion.map((d) => d.id));
+  const codigosSinteticosFaltantes = new Set<string>();
+  for (const c of resultado.conceptos) {
+    if (c.bloqueado || idsManuales.has(c.id) || sinteticoIdPorCodigo.has(c.codigo)) continue;
+    codigosSinteticosFaltantes.add(c.codigo);
+  }
+  for (const codigo of codigosSinteticosFaltantes) {
+    const def = conceptoSinteticoPorCodigo(codigo);
+    if (!def) {
+      throw new Error(
+        `El motor generó el concepto "${codigo}", que no está en CONCEPTOS_SINTETICOS ni en el catálogo.`,
+      );
+    }
+    try {
+      const creado = await db.conceptoDefinicion.create({
+        data: {
+          codigo: def.codigo,
+          codigoArca: def.codigoArca,
+          nombre: def.nombre,
+          tipo: def.tipo,
+          subtipo: def.subtipo,
+          rubroRecibo: def.rubroRecibo,
+          afectaAportes: def.afectaAportes,
+          afectaContribuciones: def.afectaContribuciones,
+          afectaSAC: def.afectaSAC,
+          ordenImpresion: def.ordenImpresion,
+        },
+      });
+      sinteticoIdPorCodigo.set(codigo, creado.id);
+    } catch (err) {
+      // Carrera con otra liquidación que creó el mismo concepto en paralelo: re-buscar.
+      if (err instanceof Error && "code" in err && (err as { code?: string }).code === "P2002") {
+        const existente = await db.conceptoDefinicion.findFirst({
+          where: { empresaId: null, codigo },
+        });
+        if (!existente) throw err;
+        sinteticoIdPorCodigo.set(codigo, existente.id);
+      } else {
+        throw err;
+      }
+    }
+  }
 
   const snapshotInput: Prisma.InputJsonValue = {
     anio: params.anio,
@@ -283,9 +310,10 @@ async function calcularYGuardarLiquidacionLegajo(params: {
     for (const c of resultado.conceptos) {
       if (c.bloqueado) continue;
       const defId =
-        catalogoSintetico.find((d) => d.codigo === c.codigo)?.id ??
-        conceptosDefinicion.find((d) => d.id === c.id)?.id;
-      if (!defId) continue;
+        conceptosDefinicion.find((d) => d.id === c.id)?.id ?? sinteticoIdPorCodigo.get(c.codigo);
+      if (!defId) {
+        throw new Error(`No se pudo mapear el concepto "${c.codigo}" a un ConceptoDefinicion.`);
+      }
       await tx.conceptoLiquidacion.create({
         data: {
           liquidacionId: liq.id,
