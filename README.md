@@ -56,6 +56,9 @@ Requisitos en el VPS: el repo clonado en `DEPLOY_PATH` con `origin` apuntando a 
 presente; `git`, `docker` y `docker compose` disponibles para `SSH_USER`. Conviene crear el
 environment `production` en GitHub y, si se quiere, exigir aprobación manual antes del deploy.
 
+Para dejar el VPS listo de una: `DEPLOY_PATH=/opt/sueldos bash scripts/deploy-bootstrap.sh`
+(clona el repo, genera un `.env` inicial, crea la red `systeg` y hace el primer build + migración).
+
 ### Deploy manual
 
 ```bash
