@@ -2,6 +2,7 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { CONCEPTOS_SINTETICOS } from "../src/lib/payroll/conceptosSinteticos";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const db = new PrismaClient({ adapter });
@@ -1095,6 +1096,33 @@ async function main() {
     });
     if (!existente) {
       await db.conceptoDefinicion.create({ data: c });
+    }
+  }
+
+  // Red de seguridad: garantizar que TODO concepto que puede emitir el motor de
+  // liquidación tenga su fila de catálogo (misma fuente de verdad que usa la
+  // persistencia de la liquidación). Cubre huecos de DBs sembradas con versiones
+  // viejas del seed (p. ej. faltaba "IPS FSA" / código 30010).
+  console.log("Verificando conceptos sintéticos del motor de liquidación...");
+  for (const def of CONCEPTOS_SINTETICOS) {
+    const existente = await db.conceptoDefinicion.findFirst({
+      where: { empresaId: null, codigo: def.codigo },
+    });
+    if (!existente) {
+      await db.conceptoDefinicion.create({
+        data: {
+          codigo: def.codigo,
+          codigoArca: def.codigoArca,
+          nombre: def.nombre,
+          tipo: def.tipo,
+          subtipo: def.subtipo,
+          rubroRecibo: def.rubroRecibo,
+          afectaAportes: def.afectaAportes,
+          afectaContribuciones: def.afectaContribuciones,
+          afectaSAC: def.afectaSAC,
+          ordenImpresion: def.ordenImpresion,
+        },
+      });
     }
   }
 

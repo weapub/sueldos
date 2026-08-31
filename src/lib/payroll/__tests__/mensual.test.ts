@@ -402,6 +402,13 @@ describe("caso de regresión GONZALEZ IVAN (GONZALEZ.xlsm, legajo 3, período JU
     expect(resultado.totalDeducciones.toFixed(2)).toBe("128351.31");
   });
 
+  it("incluye la deducción IPS FSA (código 30010) = 1% del remunerativo", () => {
+    const ips = resultado.conceptos.find((c) => c.codigo === "30010");
+    expect(ips).toBeDefined();
+    expect(ips?.tipo).toBe("DEDUCCION");
+    expect(ips?.montoAjustado.toFixed(2)).toBe(resultado.totalRemunerativo.times("0.01").toFixed(2));
+  });
+
   it("neto = 528.408,73", () => {
     expect(resultado.neto.toFixed(2)).toBe("528408.73");
   });
