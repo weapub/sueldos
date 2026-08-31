@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { obtenerLegajo } from "@/actions/legajos";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatFechaAR } from "@/lib/fecha";
@@ -18,7 +20,7 @@ export default async function LegajoDetailPage({
 }: {
   params: Promise<{ empresaId: string; legajoId: string }>;
 }) {
-  const { legajoId } = await params;
+  const { empresaId, legajoId } = await params;
   const result = await obtenerLegajo(legajoId);
   if (!result.ok) notFound();
   const legajo = result.data;
@@ -32,9 +34,14 @@ export default async function LegajoDetailPage({
           </h1>
           <p className="text-sm text-muted-foreground">Legajo N° {legajo.numeroLegajo}</p>
         </div>
-        <Badge variant={legajo.situacion === "ACTIVO" ? "default" : "secondary"}>
-          {legajo.situacion}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant={legajo.situacion === "ACTIVO" ? "default" : "secondary"}>
+            {legajo.situacion}
+          </Badge>
+          <Button asChild variant="secondary">
+            <Link href={`/empresas/${empresaId}/legajos/${legajoId}/editar`}>Editar</Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

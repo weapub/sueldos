@@ -88,6 +88,67 @@ export async function crearLegajo(
   }
 }
 
+export async function actualizarLegajo(
+  legajoId: string,
+  empresaId: string,
+  _prevState: unknown,
+  formData: FormData,
+): Promise<ActionResult<{ id: string }>> {
+  try {
+    const session = await requireEscritura(empresaId);
+
+    const actual = await db.legajo.findUnique({ where: { id: legajoId }, select: { empresaId: true } });
+    if (!actual || actual.empresaId !== empresaId) {
+      return { ok: false, error: "Legajo no encontrado." };
+    }
+
+    const parsed = legajoSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
+    }
+    const v = parsed.data;
+
+    await db.legajo.update({
+      where: { id: legajoId },
+      data: {
+        numeroLegajo: v.numeroLegajo,
+        nombre: v.nombre,
+        apellido: v.apellido,
+        cuil: v.cuil,
+        fechaNacimiento: new Date(v.fechaNacimiento),
+        fechaIngreso: new Date(v.fechaIngreso),
+        categoriaId: v.categoriaId,
+        tipoContrato: v.tipoContrato,
+        modalidadRemuneracion: v.modalidadRemuneracion,
+        horasSemanales: v.horasSemanales ?? null,
+        horasSemanalesFullTime: v.horasSemanalesFullTime,
+        sueldoBasico: v.sueldoBasico,
+        obraSocial: v.obraSocial || null,
+        afiliadoSindical: v.afiliadoSindical,
+        regimenRIFL: v.regimenRIFL,
+        regimenRIFLFechaAlta: v.regimenRIFLFechaAlta ? new Date(v.regimenRIFLFechaAlta) : null,
+      },
+    });
+
+    await logAudit({
+      usuarioId: session.user.id,
+      accion: "LEGAJO_ACTUALIZADO",
+      entidad: "Legajo",
+      entidadId: legajoId,
+      detalle: { numeroLegajo: v.numeroLegajo, apellido: v.apellido },
+    });
+
+    revalidatePath(`/empresas/${empresaId}/legajos`);
+    revalidatePath(`/empresas/${empresaId}/legajos/${legajoId}`);
+    return { ok: true, data: { id: legajoId } };
+  } catch (err) {
+    if (err instanceof Error && "code" in err && (err as { code?: string }).code === "P2002") {
+      return { ok: false, error: "Ya existe otro legajo con ese número o CUIL." };
+    }
+    return { ok: false, error: err instanceof AuthzError ? err.message : "Error al actualizar el legajo." };
+  }
+}
+
 export async function darDeBajaLegajo(legajoId: string, empresaId: string, fechaEgreso: string): Promise<ActionResult> {
   try {
     const session = await requireEscritura(empresaId);
