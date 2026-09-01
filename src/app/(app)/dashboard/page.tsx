@@ -49,11 +49,21 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {stats.map((stat) => (
-          <Card key={stat.label} className="overflow-hidden">
-            <CardContent className="flex items-start justify-between pt-6">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-                <p className="text-3xl font-semibold tabular-nums">{stat.value}</p>
+          <Card
+            key={stat.label}
+            className="transition-shadow duration-150 hover:shadow-md"
+          >
+            <CardContent className="flex items-start gap-4">
+              <div
+                className={cn(
+                  "flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary",
+                )}
+              >
+                <stat.icon className="size-5" strokeWidth={2} />
+              </div>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                <p className="text-2xl font-bold tabular-nums">{stat.value}</p>
                 {stat.href && (
                   <Link
                     href={stat.href}
@@ -62,13 +72,6 @@ export default async function DashboardPage() {
                     {stat.linkLabel}
                   </Link>
                 )}
-              </div>
-              <div
-                className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary",
-                )}
-              >
-                <stat.icon className="size-5" strokeWidth={2} />
               </div>
             </CardContent>
           </Card>

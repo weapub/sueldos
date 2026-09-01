@@ -39,7 +39,7 @@ export default async function LegajoDetailPage({
           <p className="text-sm text-muted-foreground">Legajo N° {legajo.numeroLegajo}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant={legajo.situacion === "ACTIVO" ? "default" : "secondary"}>
+          <Badge variant={legajo.situacion === "ACTIVO" ? "success" : "secondary"}>
             {legajo.situacion}
           </Badge>
           <Button asChild variant="secondary">

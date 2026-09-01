@@ -1,24 +1,11 @@
-import Link from "next/link";
+import { ConfigNav } from "./config-nav";
 
 export default function ConfiguracionLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Configuración</h1>
-        <nav className="mt-2 flex gap-4 text-sm">
-          <Link href="/configuracion/usuarios" className="text-primary hover:underline">
-            Usuarios
-          </Link>
-          <Link href="/configuracion/tasas" className="text-primary hover:underline">
-            Tasas laborales
-          </Link>
-          <Link href="/configuracion/asignaciones" className="text-primary hover:underline">
-            Asignaciones familiares
-          </Link>
-          <Link href="/configuracion/ganancias" className="text-primary hover:underline">
-            Ganancias
-          </Link>
-        </nav>
+        <h1 className="text-2xl font-semibold tracking-tight">Configuración</h1>
+        <ConfigNav />
       </div>
       {children}
     </div>

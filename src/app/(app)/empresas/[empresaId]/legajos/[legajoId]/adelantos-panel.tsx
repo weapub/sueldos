@@ -104,9 +104,9 @@ export function AdelantosPanel({
                 <TableCell className="text-right">{fmtMonto(a.monto)}</TableCell>
                 <TableCell>
                   {a.aplicadoEnLiquidacionId ? (
-                    <Badge variant="secondary">Descontado</Badge>
+                    <Badge variant="success">Descontado</Badge>
                   ) : (
-                    <Badge>Pendiente</Badge>
+                    <Badge variant="warning">Pendiente</Badge>
                   )}
                 </TableCell>
                 <TableCell className="max-w-[16rem] truncate">{a.observaciones ?? "—"}</TableCell>

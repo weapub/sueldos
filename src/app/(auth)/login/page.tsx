@@ -13,7 +13,7 @@ export default async function LoginPage({
         className="pointer-events-none absolute inset-0 -z-10"
         style={{
           backgroundImage:
-            "radial-gradient(circle at 15% 20%, oklch(0.47 0.16 264 / 12%), transparent 55%), radial-gradient(circle at 85% 80%, oklch(0.6 0.14 264 / 10%), transparent 55%)",
+            "radial-gradient(circle at 15% 20%, oklch(0.546 0.215 262.9 / 12%), transparent 55%), radial-gradient(circle at 85% 80%, oklch(0.62 0.19 262 / 10%), transparent 55%)",
         }}
       />
       <div className="w-full max-w-sm space-y-6">

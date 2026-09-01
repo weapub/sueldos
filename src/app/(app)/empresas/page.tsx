@@ -67,7 +67,7 @@ export default async function EmpresasPage() {
                     <TableCell>{TAMANO_LABEL[empresa.tamano]}</TableCell>
                     <TableCell>{empresa.provincia}</TableCell>
                     <TableCell>
-                      <Badge variant={empresa.activa ? "default" : "secondary"}>
+                      <Badge variant={empresa.activa ? "success" : "secondary"}>
                         {empresa.activa ? "Activa" : "Archivada"}
                       </Badge>
                     </TableCell>
