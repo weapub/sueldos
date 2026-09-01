@@ -8,6 +8,7 @@ import {
   ConceptosManualesPanel,
   type ConceptoManualFila,
 } from "./conceptos-manuales-panel";
+import { HorasExtraPanel, type HoraExtraFila } from "./horas-extra-panel";
 import {
   Table,
   TableBody,
@@ -82,6 +83,17 @@ export default async function ReciboPage({
     consentimientoFirmado: c.consentimientoFirmado ?? false,
     porcentaje: c.porcentaje,
     baseCalculo: c.baseCalculo,
+  }));
+
+  const horasExtraFilas: HoraExtraFila[] = (
+    (liquidacion.snapshotInputJson as {
+      horasExtra?: { horas: string; recargo: 50 | 100; modalidad: HoraExtraFila["modalidad"] }[];
+    })?.horasExtra ?? []
+  ).map((h, i) => ({
+    indice: i,
+    horas: String(h.horas),
+    recargo: h.recargo,
+    modalidad: h.modalidad,
   }));
 
   const totalRem = Number(liquidacion.totalRemunerativo);
@@ -208,6 +220,21 @@ export default async function ReciboPage({
               catalogo={catalogo}
               bases={basesCalculo}
             />
+          </CardContent>
+        </Card>
+      )}
+
+      {editable && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Horas extra</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Valor hora = (básico + antigüedad + presentismo) / divisor de convenio. Al guardar
+              se recalcula la liquidación.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <HorasExtraPanel liquidacionId={liquidacion.id} horasExtra={horasExtraFilas} />
           </CardContent>
         </Card>
       )}

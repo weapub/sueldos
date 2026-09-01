@@ -78,6 +78,17 @@ export interface TasasVigentes {
   aporteSolidarioFijo: Money; // ej. Aporte solidario OSECAC, monto fijo
   /** RIFL (Título XX Ley 27.802): % de reducción de contribuciones patronales. Default 0 — sin reglamentar. */
   riflReduccionContribuciones: Money;
+  /** Divisor para el valor de la hora extra: valor hora = (básico+antigüedad+presentismo) / divisor. */
+  divisorHorasMes: Money;
+}
+
+export type ModalidadHorasExtra = "PAGO" | "BANCO_HORAS" | "FRANCO_COMPENSATORIO";
+
+export interface HoraExtraInput {
+  horas: Money;
+  /** Recargo legal: 50 (día hábil / sábado a la mañana) o 100 (sábado tarde / domingo / feriado). */
+  recargo: 50 | 100;
+  modalidad: ModalidadHorasExtra;
 }
 
 export interface LegajoMensualInput {
@@ -119,6 +130,8 @@ export interface LiquidacionMensualInput {
   presentismoCorresponde?: boolean;
   /** Conceptos adicionales del período (básico se agrega automáticamente, no incluirlo acá). */
   conceptos: ConceptoInput[];
+  /** Horas extra del período. Las de modalidad "PAGO" se abonan; banco/franco no generan pago. */
+  horasExtra?: HoraExtraInput[];
   tasas: TasasVigentes;
 }
 

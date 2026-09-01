@@ -19,6 +19,8 @@ const PRESENTISMO_CODIGO = "10003";
 const ADICIONAL_NR_CODIGO = "20001";
 const ANTIGUEDAD_NR_CODIGO = "20002";
 const PRESENTISMO_NR_CODIGO = "20003";
+const HORAS_EXTRA_50_CODIGO = "40001";
+const HORAS_EXTRA_100_CODIGO = "40002";
 
 /**
  * Prorratea un monto full-time por horas contratadas (art. 92 ter) y por días trabajados del
@@ -109,6 +111,44 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
           consentimientoFirmado: false,
         }
       : null;
+
+  // 2 bis. Horas extra pagadas. Valor hora simple = (básico + antigüedad + presentismo
+  // prorrateados) / divisor de convenio (Comercio: 200). Recargo 50% o 100%. Las horas a
+  // banco de horas / franco compensatorio (art. 197 bis) no generan pago en el período.
+  const baseHoraria = montoBasico
+    .plus(conceptoAntiguedad?.monto ?? ZERO)
+    .plus(conceptoPresentismo?.monto ?? ZERO);
+  const valorHoraSimple = input.tasas.divisorHorasMes.gt(0)
+    ? round2(baseHoraria.div(input.tasas.divisorHorasMes))
+    : ZERO;
+  const conceptosHorasExtra: ConceptoInput[] = [];
+  for (const he of input.horasExtra ?? []) {
+    if (he.modalidad !== "PAGO") {
+      warnings.push(
+        `${he.horas.toString()} horas extra al ${he.recargo}% a ${
+          he.modalidad === "BANCO_HORAS" ? "banco de horas" : "franco compensatorio"
+        } — sin pago en el período.`,
+      );
+      continue;
+    }
+    const montoUnitario = round2(valorHoraSimple.times(money(1).plus(money(he.recargo).div(100))));
+    const codigo = he.recargo === 100 ? HORAS_EXTRA_100_CODIGO : HORAS_EXTRA_50_CODIGO;
+    conceptosHorasExtra.push({
+      id: codigo,
+      codigo,
+      nombre: `Horas extra ${he.recargo}%`,
+      tipo: "REMUNERATIVO",
+      monto: round2(he.horas.times(montoUnitario)),
+      cantidad: he.horas,
+      montoUnitario,
+      afectaAportes: true,
+      afectaContribuciones: true,
+      afectaSAC: true,
+      esVariable: true,
+      requiereConsentimiento: false,
+      consentimientoFirmado: false,
+    });
+  }
 
   // 3. SAC (art. 245 lo excluye de su propia base: afectaSAC=false).
   const conceptoSAC: ConceptoInput | null = input.esMesSAC
@@ -221,6 +261,7 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
     conceptoBasico,
     ...(conceptoAntiguedad ? [conceptoAntiguedad] : []),
     ...(conceptoPresentismo ? [conceptoPresentismo] : []),
+    ...conceptosHorasExtra,
     ...(conceptoSAC ? [conceptoSAC] : []),
     ...(conceptoAdicionalNR ? [conceptoAdicionalNR] : []),
     ...(conceptoAntiguedadNR ? [conceptoAntiguedadNR] : []),

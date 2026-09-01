@@ -58,6 +58,7 @@ export async function getTasasVigentes(empresaId: string, fecha: Date): Promise<
     artFfepFijo,
     svoFijo,
     riflReduccionContribuciones,
+    divisorHorasMes,
   ] = await Promise.all([
     resolverTasa(ClaveTasa.APORTE_JUBILACION, empresaId, fecha),
     resolverTasa(ClaveTasa.APORTE_LEY19032_PAMI, empresaId, fecha),
@@ -80,6 +81,7 @@ export async function getTasasVigentes(empresaId: string, fecha: Date): Promise<
     resolverTasa(ClaveTasa.ART_FFEP_FIJO, empresaId, fecha),
     resolverTasa(ClaveTasa.SVO_FIJO, empresaId, fecha),
     resolverTasa(ClaveTasa.RIFL_REDUCCION_CONTRIBUCIONES, empresaId, fecha),
+    resolverTasa(ClaveTasa.DIVISOR_HORAS_MES, empresaId, fecha),
   ]);
 
   return {
@@ -104,5 +106,6 @@ export async function getTasasVigentes(empresaId: string, fecha: Date): Promise<
     deduccionAporteProvincial,
     aporteSolidarioFijo,
     riflReduccionContribuciones,
+    divisorHorasMes,
   };
 }

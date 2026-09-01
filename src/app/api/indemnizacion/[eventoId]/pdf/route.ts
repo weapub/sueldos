@@ -17,6 +17,16 @@ interface ResultadoJson {
     indemnizacionFinal: string;
   };
   preaviso: { mesesPreaviso: number; montoPreaviso: string };
+  liquidacionFinal?: {
+    diasTrabajadosMes: { dias: number; monto: string };
+    sacProporcional: string;
+    vacacionesNoGozadas: { dias: number; monto: string };
+    integracionMesDespido: string;
+    sacSobreIntegracion: string;
+    sacSobrePreaviso: string;
+    subtotalFinal: string;
+  };
+  totalGeneral?: string;
   warnings: string[];
 }
 
@@ -60,6 +70,8 @@ export async function GET(
     fechaEgreso: formatFechaAR(evento.fechaEgreso),
     art245: resultado.art245,
     preaviso: resultado.preaviso,
+    liquidacionFinal: resultado.liquidacionFinal,
+    totalGeneral: resultado.totalGeneral,
     beneficiarios: evento.beneficiarios.map((b) => ({
       nombre: b.nombre,
       vinculo: b.vinculo,

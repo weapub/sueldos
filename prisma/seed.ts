@@ -36,6 +36,8 @@ async function main() {
     // Antigüedad/presentismo (motor de liquidación mensual) — 1%/año es el estándar LCT/CCT más
     // común, cualquier empresa/categoría puede sobreescribirlo si su convenio difiere.
     { clave: "ANTIGUEDAD_PORCENTAJE_ANIO", valor: 0.01 },
+    // Divisor para el valor de la hora extra (Comercio 130/75 usa 200). No es %.
+    { clave: "DIVISOR_HORAS_MES", valor: 200 },
     // RIFL (Título XX Ley 27.802): 0 por defecto — no reglamentado todavía, no inventar el %.
     { clave: "RIFL_REDUCCION_CONTRIBUCIONES", valor: 0 },
     // FAL y topes de deducción (Ley 27.802)

@@ -41,6 +41,8 @@ export const CONCEPTOS_SINTETICOS: ConceptoSinteticoDef[] = [
   { codigo: "20001", codigoArca: "551000", nombre: "ADICIONAL NO REMUNERATIVO", tipo: "NO_REMUNERATIVO", afectaAportes: true, afectaContribuciones: true, afectaSAC: false, ordenImpresion: 12 },
   { codigo: "20002", codigoArca: "550000", nombre: "ANTIGÜEDAD NO REMUNERATIVO", tipo: "NO_REMUNERATIVO", afectaAportes: true, afectaContribuciones: true, afectaSAC: false, ordenImpresion: 13 },
   { codigo: "20003", codigoArca: "550000", nombre: "PRESENTISMO NO REMUNERATIVO", tipo: "NO_REMUNERATIVO", afectaAportes: true, afectaContribuciones: true, afectaSAC: false, ordenImpresion: 14 },
+  { codigo: "40001", codigoArca: "120000", nombre: "HORAS EXTRA 50%", tipo: "REMUNERATIVO", afectaAportes: true, afectaContribuciones: true, afectaSAC: true, ordenImpresion: 15 },
+  { codigo: "40002", codigoArca: "121000", nombre: "HORAS EXTRA 100%", tipo: "REMUNERATIVO", afectaAportes: true, afectaContribuciones: true, afectaSAC: true, ordenImpresion: 16 },
 
   // Deducciones obligatorias y de convenio
   { codigo: "APORTES", nombre: "Aportes (jubilación + ley 19.032 + obra social)", tipo: "DEDUCCION", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 90 },

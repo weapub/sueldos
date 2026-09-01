@@ -25,6 +25,7 @@ const tasas: TasasVigentes = {
   deduccionAporteProvincial: money(0),
   aporteSolidarioFijo: money(0),
   riflReduccionContribuciones: money(0),
+  divisorHorasMes: money(200),
 };
 
 describe("calcularLiquidacionMensual", () => {
@@ -308,6 +309,61 @@ describe("calcularLiquidacionMensual", () => {
     // deducciones totales = solo aportes, el seguro bloqueado no descuenta
     expect(result.totalDeducciones.toFixed(2)).toBe("170000.00");
   });
+
+  it("liquida horas extra pagadas al 50% y 100% (valor hora = básico / divisor 200)", () => {
+    const result = calcularLiquidacionMensual({
+      legajo: {
+        sueldoBasico: money(1000000),
+        horasSemanalesFullTime: money(48),
+        modalidadRemuneracion: "MENSUAL",
+      },
+      anio: 2026,
+      mes: 7,
+      diasTrabajados: 31,
+      diasEnMes: 31,
+      esMesSAC: false,
+      conceptos: [],
+      horasExtra: [
+        { horas: money(10), recargo: 50, modalidad: "PAGO" },
+        { horas: money(5), recargo: 100, modalidad: "PAGO" },
+      ],
+      tasas,
+    });
+
+    // valor hora simple = 1,000,000 / 200 = 5,000
+    const he50 = result.conceptos.find((c) => c.codigo === "40001");
+    const he100 = result.conceptos.find((c) => c.codigo === "40002");
+    expect(he50?.montoUnitario?.toFixed(2)).toBe("7500.00"); // 5000 * 1.5
+    expect(he50?.monto.toFixed(2)).toBe("75000.00"); // 10h
+    expect(he100?.montoUnitario?.toFixed(2)).toBe("10000.00"); // 5000 * 2
+    expect(he100?.monto.toFixed(2)).toBe("50000.00"); // 5h
+    // remunerativo = 1,000,000 + 75,000 + 50,000
+    expect(result.totalRemunerativo.toFixed(2)).toBe("1125000.00");
+    // aportes 17% sobre 1,125,000 → las horas extra cuentan para aportes
+    expect(result.totalDeducciones.toFixed(2)).toBe("191250.00");
+  });
+
+  it("horas extra a banco de horas no generan pago en el período, solo un warning", () => {
+    const result = calcularLiquidacionMensual({
+      legajo: {
+        sueldoBasico: money(1000000),
+        horasSemanalesFullTime: money(48),
+        modalidadRemuneracion: "MENSUAL",
+      },
+      anio: 2026,
+      mes: 7,
+      diasTrabajados: 31,
+      diasEnMes: 31,
+      esMesSAC: false,
+      conceptos: [],
+      horasExtra: [{ horas: money(8), recargo: 50, modalidad: "BANCO_HORAS" }],
+      tasas,
+    });
+
+    expect(result.conceptos.some((c) => c.codigo === "40001")).toBe(false);
+    expect(result.totalRemunerativo.toFixed(2)).toBe("1000000.00");
+    expect(result.warnings.some((w) => w.includes("banco de horas"))).toBe(true);
+  });
 });
 
 describe("caso de regresión GONZALEZ IVAN (GONZALEZ.xlsm, legajo 3, período JUN/2024)", () => {
@@ -339,6 +395,7 @@ describe("caso de regresión GONZALEZ IVAN (GONZALEZ.xlsm, legajo 3, período JU
     deduccionAporteProvincial: money(0.01), // IPS FSA
     aporteSolidarioFijo: money(100),
     riflReduccionContribuciones: money(0),
+    divisorHorasMes: money(200),
   };
 
   const mejorRemuneracionSemestre = money("263517.79"); // básico + antigüedad + presentismo del propio período (sin historial previo)

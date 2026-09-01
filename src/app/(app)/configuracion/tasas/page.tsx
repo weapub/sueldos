@@ -1,5 +1,5 @@
 import { listarTasasVigentes } from "@/actions/configuracion";
-import { CLAVE_TASA_LABEL, CLAVES_MONTO_FIJO } from "@/lib/validation/tasas";
+import { CLAVE_TASA_LABEL, CLAVES_MONTO_FIJO, CLAVES_NUMERO_LIBRE } from "@/lib/validation/tasas";
 import { formatFechaAR } from "@/lib/fecha";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -42,7 +42,9 @@ export default async function TasasPage() {
                     <TableCell>
                       {CLAVES_MONTO_FIJO.has(tasa.clave as keyof typeof CLAVE_TASA_LABEL)
                         ? `$${Number(tasa.valor).toLocaleString("es-AR", { minimumFractionDigits: 2 })}`
-                        : `${(Number(tasa.valor) * 100).toFixed(3)}%`}
+                        : CLAVES_NUMERO_LIBRE.has(tasa.clave as keyof typeof CLAVE_TASA_LABEL)
+                          ? Number(tasa.valor).toLocaleString("es-AR")
+                          : `${(Number(tasa.valor) * 100).toFixed(3)}%`}
                     </TableCell>
                     <TableCell>{formatFechaAR(tasa.vigenciaDesde)}</TableCell>
                   </TableRow>

@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit";
 import { eventoDesvinculacionSchema } from "@/lib/validation/desvinculaciones";
 import { money } from "@/lib/payroll/money";
 import { calcularIndemnizacion, type Beneficiario, type VinculoBeneficiario } from "@/lib/payroll/indemnizacion";
+import { calcularLiquidacionFinal } from "@/lib/payroll/liquidacionFinal";
 import { evaluarCoberturaFal } from "@/lib/payroll/fal";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/actions/empresas";
@@ -135,7 +136,7 @@ export async function calcularYGuardarIndemnizacion(
       where: { legajoId: legajo.id, estado: { not: "ANULADA" } },
       orderBy: [{ periodo: { anio: "asc" } }, { periodo: { mes: "asc" } }],
       take: 12,
-      include: { conceptos: { include: { conceptoDefinicion: true } } },
+      include: { conceptos: { include: { conceptoDefinicion: true } }, periodo: true },
     });
     const remuneracionesVariables = historico.map((h) =>
       h.conceptos
@@ -166,7 +167,53 @@ export async function calcularYGuardarIndemnizacion(
       fallecimiento: evento.motivo === "FALLECIMIENTO" ? { beneficiarios } : undefined,
     });
 
+    // --- Liquidación final (rubros además de la indemnización) ---
+    const egresoAnio = evento.fechaEgreso.getUTCFullYear();
+    const egresoMes = evento.fechaEgreso.getUTCMonth() + 1;
+    const mesesSemestre = egresoMes <= 6 ? [1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12];
+    const ultimaLiq = historico.at(-1);
+    const remuneracionMensual = ultimaLiq
+      ? money(ultimaLiq.totalRemunerativo.toString())
+      : money(legajo.sueldoBasico.toString());
+    const mejorRemSemestre = historico
+      .filter((h) => mesesSemestre.includes(h.periodo?.mes ?? 0))
+      .reduce((mx, h) => {
+        const v = money(h.totalRemunerativo.toString());
+        return v.gt(mx) ? v : mx;
+      }, remuneracionMensual);
+    const vacPeriodo = await db.vacacionPeriodo.findUnique({
+      where: { legajoId_anio: { legajoId: legajo.id, anio: egresoAnio } },
+    });
+    const liqFinal = calcularLiquidacionFinal({
+      fechaIngreso: legajo.fechaIngreso,
+      fechaEgreso: evento.fechaEgreso,
+      motivo: evento.motivo,
+      preavisoOtorgado: evento.preavisoOtorgado,
+      remuneracionMensual,
+      mejorRemuneracionSemestre: mejorRemSemestre,
+      diasVacacionesGozadas: vacPeriodo?.diasGozados ?? 0,
+      montoPreaviso: resultado.preaviso.montoPreaviso,
+    });
+    const totalGeneral = resultado.montoTotal.plus(liqFinal.subtotalFinal);
+
     const resultadoJson: Prisma.InputJsonValue = {
+      liquidacionFinal: {
+        diasTrabajadosMes: {
+          dias: liqFinal.diasTrabajadosMes.dias,
+          monto: liqFinal.diasTrabajadosMes.monto.toString(),
+        },
+        sacProporcional: liqFinal.sacProporcional.toString(),
+        vacacionesNoGozadas: {
+          dias: liqFinal.vacacionesNoGozadas.dias,
+          monto: liqFinal.vacacionesNoGozadas.monto.toString(),
+        },
+        integracionMesDespido: liqFinal.integracionMesDespido.toString(),
+        sacSobreIntegracion: liqFinal.sacSobreIntegracion.toString(),
+        sacSobrePreaviso: liqFinal.sacSobrePreaviso.toString(),
+        subtotalFinal: liqFinal.subtotalFinal.toString(),
+        warnings: liqFinal.warnings,
+      },
+      totalGeneral: totalGeneral.toString(),
       art245: {
         baseArt245: resultado.art245.baseArt245.toString(),
         antiguedadAnios: resultado.art245.antiguedadAnios,

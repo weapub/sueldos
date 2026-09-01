@@ -25,6 +25,7 @@ const tasas: TasasVigentes = {
   deduccionAporteProvincial: money(0.01),
   aporteSolidarioFijo: money(100),
     riflReduccionContribuciones: money(0),
+    divisorHorasMes: money(200),
 };
 
 function sindical(nombre: string, monto: number): ConceptoInput {

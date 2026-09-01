@@ -378,6 +378,9 @@ enum ClaveTasa {
   // Contribuciones patronales adicionales (todas %)
   CONTRIB_ASIG_FAMILIARES
   CONTRIB_FNE
+  // Divisor para el valor de la hora extra: valor hora = (básico+antigüedad+presentismo) / divisor.
+  // Depende del convenio (Comercio suele usar 200). NO es %, es un entero.
+  DIVISOR_HORAS_MES
   // Montos FIJOS por período/legajo (no %) — ver EMPLEADOR en GONZALEZ.xlsm
   ART_FFEP_FIJO
   SVO_FIJO

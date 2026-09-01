@@ -37,9 +37,21 @@ export interface IndemnizacionPdfData {
     indemnizacionFinal: string;
   };
   preaviso: { mesesPreaviso: number; montoPreaviso: string };
+  liquidacionFinal?: {
+    diasTrabajadosMes: { dias: number; monto: string };
+    sacProporcional: string;
+    vacacionesNoGozadas: { dias: number; monto: string };
+    integracionMesDespido: string;
+    sacSobreIntegracion: string;
+    sacSobrePreaviso: string;
+    subtotalFinal: string;
+  };
   beneficiarios: { nombre: string; vinculo: string; montoAsignado: string }[];
   warnings: string[];
+  /** Indemnización (art. 245 + preaviso + fallecimiento). */
   montoTotal: string;
+  /** Indemnización + liquidación final. Si falta, se muestra solo `montoTotal`. */
+  totalGeneral?: string;
 }
 
 function IndemnizacionDocument({ data }: { data: IndemnizacionPdfData }) {
@@ -110,6 +122,42 @@ function IndemnizacionDocument({ data }: { data: IndemnizacionPdfData }) {
           </View>
         </View>
 
+        {data.liquidacionFinal && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Liquidación final (rubros)</Text>
+            <View style={styles.row}>
+              <Text>Días trabajados del mes ({data.liquidacionFinal.diasTrabajadosMes.dias})</Text>
+              <Text>{fmt(data.liquidacionFinal.diasTrabajadosMes.monto)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text>SAC proporcional</Text>
+              <Text>{fmt(data.liquidacionFinal.sacProporcional)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text>
+                Vacaciones no gozadas ({data.liquidacionFinal.vacacionesNoGozadas.dias} día/s)
+              </Text>
+              <Text>{fmt(data.liquidacionFinal.vacacionesNoGozadas.monto)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text>Integración mes de despido (art. 233)</Text>
+              <Text>{fmt(data.liquidacionFinal.integracionMesDespido)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text>SAC sobre integración</Text>
+              <Text>{fmt(data.liquidacionFinal.sacSobreIntegracion)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text>SAC sobre preaviso</Text>
+              <Text>{fmt(data.liquidacionFinal.sacSobrePreaviso)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={{ fontWeight: 700 }}>Subtotal liquidación final</Text>
+              <Text style={{ fontWeight: 700 }}>{fmt(data.liquidacionFinal.subtotalFinal)}</Text>
+            </View>
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Preaviso (art. 231)</Text>
           <View style={styles.row}>
@@ -148,9 +196,17 @@ function IndemnizacionDocument({ data }: { data: IndemnizacionPdfData }) {
         )}
 
         <View style={styles.totales}>
+          {data.liquidacionFinal && (
+            <View style={styles.row}>
+              <Text>Indemnización</Text>
+              <Text>{fmt(data.montoTotal)}</Text>
+            </View>
+          )}
           <View style={styles.row}>
-            <Text style={styles.totalLabel}>Monto total</Text>
-            <Text style={styles.totalValue}>{fmt(data.montoTotal)}</Text>
+            <Text style={styles.totalLabel}>
+              {data.totalGeneral ? "Total general" : "Monto total"}
+            </Text>
+            <Text style={styles.totalValue}>{fmt(data.totalGeneral ?? data.montoTotal)}</Text>
           </View>
         </View>
       </Page>

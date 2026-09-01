@@ -3,7 +3,12 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { actualizarTasa } from "@/actions/configuracion";
-import { CLAVE_TASA_LABEL, CLAVES_MONTO_FIJO, claveTasaValues } from "@/lib/validation/tasas";
+import {
+  CLAVE_TASA_LABEL,
+  CLAVES_MONTO_FIJO,
+  CLAVES_NUMERO_LIBRE,
+  claveTasaValues,
+} from "@/lib/validation/tasas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +41,8 @@ export function TasaForm() {
   }, [state, router]);
 
   const esMontoFijo = clave !== "" && CLAVES_MONTO_FIJO.has(clave);
+  const esNumeroLibre = clave !== "" && CLAVES_NUMERO_LIBRE.has(clave);
+  const esValorLibre = esMontoFijo || esNumeroLibre;
 
   return (
     <form action={formAction} className="grid max-w-2xl grid-cols-3 gap-4 items-end">
@@ -55,14 +62,20 @@ export function TasaForm() {
         </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="valor">{esMontoFijo ? "Monto fijo ($)" : "Valor (fracción, ej. 0.11)"}</Label>
+        <Label htmlFor="valor">
+          {esMontoFijo
+            ? "Monto fijo ($)"
+            : esNumeroLibre
+              ? "Valor (número, ej. 200)"
+              : "Valor (fracción, ej. 0.11)"}
+        </Label>
         <Input
           id="valor"
           name="valor"
           type="number"
-          step={esMontoFijo ? "0.01" : "0.00001"}
+          step={esValorLibre ? "0.01" : "0.00001"}
           min="0"
-          max={esMontoFijo ? undefined : 1}
+          max={esValorLibre ? undefined : 1}
           required
         />
       </div>

@@ -14,6 +14,7 @@ import {
 } from "@/lib/payroll/conceptosSinteticos";
 import { money, sum, type Money } from "@/lib/payroll/money";
 import type { ConceptoInput } from "@/lib/payroll/types";
+import { horaExtraSchema } from "@/lib/validation/liquidaciones";
 
 /**
  * Título II, Ley 27.802: el Fondo de Asistencia Laboral entra en vigencia este día.
@@ -105,6 +106,13 @@ interface ConceptoManualGuardado {
   baseCalculo?: "REMUNERATIVO" | "NO_REMUNERATIVO" | "HABERES" | "BASICO";
 }
 
+/** Hora extra del período, guardada en `snapshotInputJson.horasExtra`. */
+interface HoraExtraGuardada {
+  horas: string;
+  recargo: 50 | 100;
+  modalidad: "PAGO" | "BANCO_HORAS" | "FRANCO_COMPENSATORIO";
+}
+
 async function calcularYGuardarLiquidacionLegajo(params: {
   periodoId: string;
   empresaId: string;
@@ -113,6 +121,7 @@ async function calcularYGuardarLiquidacionLegajo(params: {
   legajoId: string;
   usuarioId: string;
   conceptosManuales: ConceptoManualGuardado[];
+  horasExtra: HoraExtraGuardada[];
 }) {
   const legajo = await db.legajo.findUniqueOrThrow({
     where: { id: params.legajoId },
@@ -214,6 +223,11 @@ async function calcularYGuardarLiquidacionLegajo(params: {
     mejorRemuneracionSemestre,
     mejorNoRemuneracionSemestre,
     conceptos: conceptosInput,
+    horasExtra: params.horasExtra.map((h) => ({
+      horas: money(h.horas),
+      recargo: h.recargo,
+      modalidad: h.modalidad,
+    })),
     tasas,
   });
 
@@ -279,6 +293,7 @@ async function calcularYGuardarLiquidacionLegajo(params: {
     esMesSAC: sacEsteMes,
     mejorRemuneracionSemestre: mejorRemuneracionSemestre?.toString() ?? null,
     conceptosManuales: params.conceptosManuales as unknown as Prisma.InputJsonValue,
+    horasExtra: params.horasExtra as unknown as Prisma.InputJsonValue,
   };
 
   const liquidacion = await db.$transaction(async (tx) => {
@@ -354,9 +369,9 @@ export async function calcularLiquidacionPeriodo(periodoId: string): Promise<Act
       const existente = await db.liquidacionMensual.findUnique({
         where: { periodoId_legajoId: { periodoId, legajoId: legajo.id } },
       });
-      const conceptosManuales: ConceptoManualGuardado[] = existente
-        ? ((existente.snapshotInputJson as { conceptosManuales?: ConceptoManualGuardado[] })?.conceptosManuales ?? [])
-        : [];
+      const snap = existente?.snapshotInputJson as
+        | { conceptosManuales?: ConceptoManualGuardado[]; horasExtra?: HoraExtraGuardada[] }
+        | undefined;
 
       const { warnings: w } = await calcularYGuardarLiquidacionLegajo({
         periodoId,
@@ -365,7 +380,8 @@ export async function calcularLiquidacionPeriodo(periodoId: string): Promise<Act
         mes: periodo.mes,
         legajoId: legajo.id,
         usuarioId: session.user.id,
-        conceptosManuales,
+        conceptosManuales: snap?.conceptosManuales ?? [],
+        horasExtra: snap?.horasExtra ?? [],
       });
       warnings.push(...w.map((msg) => `${legajo.apellido}, ${legajo.nombre}: ${msg}`));
     }
@@ -403,10 +419,11 @@ async function mutarConceptosManuales(
       return { ok: false, error: "El período ya fue confirmado, no se pueden modificar conceptos." };
     }
 
-    const actuales =
-      (liquidacion.snapshotInputJson as { conceptosManuales?: ConceptoManualGuardado[] })
-        ?.conceptosManuales ?? [];
-    const resultado = mutar(actuales);
+    const snap = liquidacion.snapshotInputJson as {
+      conceptosManuales?: ConceptoManualGuardado[];
+      horasExtra?: HoraExtraGuardada[];
+    };
+    const resultado = mutar(snap?.conceptosManuales ?? []);
     if (!Array.isArray(resultado)) return { ok: false, error: resultado.error };
 
     await calcularYGuardarLiquidacionLegajo({
@@ -417,6 +434,7 @@ async function mutarConceptosManuales(
       legajoId: liquidacion.legajoId,
       usuarioId: session.user.id,
       conceptosManuales: resultado,
+      horasExtra: snap?.horasExtra ?? [],
     });
 
     revalidatePath(`/empresas/${liquidacion.periodo.empresaId}/liquidaciones/${liquidacion.periodoId}`);
@@ -453,6 +471,91 @@ export async function eliminarConceptoManual(
 ): Promise<ActionResult> {
   return await mutarConceptosManuales(liquidacionId, (actuales) => {
     if (indice < 0 || indice >= actuales.length) return { error: "Concepto no encontrado." };
+    return actuales.filter((_, i) => i !== indice);
+  });
+}
+
+/** Análogo a `mutarConceptosManuales` pero sobre el array `horasExtra` del snapshot. */
+async function mutarHorasExtra(
+  liquidacionId: string,
+  mutar: (actuales: HoraExtraGuardada[]) => HoraExtraGuardada[] | { error: string },
+): Promise<ActionResult> {
+  try {
+    const liquidacion = await db.liquidacionMensual.findUniqueOrThrow({
+      where: { id: liquidacionId },
+      include: { periodo: true },
+    });
+    const session = await requireEscritura(liquidacion.periodo.empresaId);
+    if (liquidacion.periodo.estado !== "BORRADOR") {
+      return { ok: false, error: "El período ya fue confirmado, no se pueden modificar horas extra." };
+    }
+
+    const snap = liquidacion.snapshotInputJson as {
+      conceptosManuales?: ConceptoManualGuardado[];
+      horasExtra?: HoraExtraGuardada[];
+    };
+    const resultado = mutar(snap?.horasExtra ?? []);
+    if (!Array.isArray(resultado)) return { ok: false, error: resultado.error };
+
+    await calcularYGuardarLiquidacionLegajo({
+      periodoId: liquidacion.periodoId,
+      empresaId: liquidacion.periodo.empresaId,
+      anio: liquidacion.periodo.anio,
+      mes: liquidacion.periodo.mes,
+      legajoId: liquidacion.legajoId,
+      usuarioId: session.user.id,
+      conceptosManuales: snap?.conceptosManuales ?? [],
+      horasExtra: resultado,
+    });
+
+    revalidatePath(`/empresas/${liquidacion.periodo.empresaId}/liquidaciones/${liquidacion.periodoId}`);
+    revalidatePath(
+      `/empresas/${liquidacion.periodo.empresaId}/liquidaciones/${liquidacion.periodoId}/${liquidacionId}`,
+    );
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return { ok: false, error: err instanceof AuthzError ? err.message : "Error al guardar las horas extra." };
+  }
+}
+
+function parseHoraExtra(entrada: unknown): HoraExtraGuardada | { error: string } {
+  const parsed = horaExtraSchema.safeParse(entrada);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
+  return {
+    horas: String(parsed.data.horas),
+    recargo: parsed.data.recargo,
+    modalidad: parsed.data.modalidad,
+  };
+}
+
+export async function agregarHorasExtra(
+  liquidacionId: string,
+  entrada: unknown,
+): Promise<ActionResult> {
+  const he = parseHoraExtra(entrada);
+  if ("error" in he) return { ok: false, error: he.error };
+  return await mutarHorasExtra(liquidacionId, (actuales) => [...actuales, he]);
+}
+
+export async function editarHorasExtra(
+  liquidacionId: string,
+  indice: number,
+  entrada: unknown,
+): Promise<ActionResult> {
+  const he = parseHoraExtra(entrada);
+  if ("error" in he) return { ok: false, error: he.error };
+  return await mutarHorasExtra(liquidacionId, (actuales) => {
+    if (indice < 0 || indice >= actuales.length) return { error: "Registro no encontrado." };
+    return actuales.map((h, i) => (i === indice ? he : h));
+  });
+}
+
+export async function eliminarHorasExtra(
+  liquidacionId: string,
+  indice: number,
+): Promise<ActionResult> {
+  return await mutarHorasExtra(liquidacionId, (actuales) => {
+    if (indice < 0 || indice >= actuales.length) return { error: "Registro no encontrado." };
     return actuales.filter((_, i) => i !== indice);
   });
 }

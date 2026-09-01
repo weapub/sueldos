@@ -24,6 +24,7 @@ export const claveTasaValues = [
   "DETRACCION_ART22_SIN_SAC",
   "DETRACCION_ART23_CONTRIBUCIONES",
   "RIFL_REDUCCION_CONTRIBUCIONES",
+  "DIVISOR_HORAS_MES",
 ] as const;
 
 export const CLAVE_TASA_LABEL: Record<(typeof claveTasaValues)[number], string> = {
@@ -50,6 +51,7 @@ export const CLAVE_TASA_LABEL: Record<(typeof claveTasaValues)[number], string> 
   DETRACCION_ART22_SIN_SAC: "Detracción art. 22 Ley 27.541 — sin SAC (monto fijo $)",
   DETRACCION_ART23_CONTRIBUCIONES: "Detracción art. 23 Ley 27.541 — contribuciones (monto fijo $)",
   RIFL_REDUCCION_CONTRIBUCIONES: "RIFL — % de reducción de contribuciones patronales (sin reglamentar, default 0)",
+  DIVISOR_HORAS_MES: "Divisor para valor hora extra (ej. 200)",
 };
 
 /** Claves cuyo `valor` es un monto fijo en pesos, no una fracción/porcentaje. */
@@ -62,15 +64,21 @@ export const CLAVES_MONTO_FIJO = new Set<(typeof claveTasaValues)[number]>([
   "DETRACCION_ART23_CONTRIBUCIONES",
 ]);
 
+/** Claves cuyo `valor` es un número libre (ni fracción ni pesos). */
+export const CLAVES_NUMERO_LIBRE = new Set<(typeof claveTasaValues)[number]>(["DIVISOR_HORAS_MES"]);
+
 export const tasaSchema = z
   .object({
     clave: z.enum(claveTasaValues),
     valor: z.coerce.number().min(0),
     vigenciaDesde: z.string().min(1, "Ingresá la fecha de vigencia."),
   })
-  .refine((v) => CLAVES_MONTO_FIJO.has(v.clave) || v.valor <= 1, {
-    message: "El valor debe expresarse como fracción (ej. 0.11 = 11%), máximo 1.",
-    path: ["valor"],
-  });
+  .refine(
+    (v) => CLAVES_MONTO_FIJO.has(v.clave) || CLAVES_NUMERO_LIBRE.has(v.clave) || v.valor <= 1,
+    {
+      message: "El valor debe expresarse como fracción (ej. 0.11 = 11%), máximo 1.",
+      path: ["valor"],
+    },
+  );
 
 export type TasaInput = z.infer<typeof tasaSchema>;

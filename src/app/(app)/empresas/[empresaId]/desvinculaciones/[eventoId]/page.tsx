@@ -24,6 +24,17 @@ interface ResultadoJson {
     indemnizacionFinal: string;
   };
   preaviso?: { mesesPreaviso: number; montoPreaviso: string };
+  liquidacionFinal?: {
+    diasTrabajadosMes: { dias: number; monto: string };
+    sacProporcional: string;
+    vacacionesNoGozadas: { dias: number; monto: string };
+    integracionMesDespido: string;
+    sacSobreIntegracion: string;
+    sacSobrePreaviso: string;
+    subtotalFinal: string;
+    warnings?: string[];
+  };
+  totalGeneral?: string;
   montoIndemnizacionAntiguedad?: string;
   warnings?: string[];
   enPeriodoDePrueba?: boolean;
@@ -124,6 +135,49 @@ export default async function DesvinculacionDetailPage({
             </CardContent>
           </Card>
 
+          {resultado.liquidacionFinal && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Liquidación final (rubros)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>
+                    Días trabajados del mes ({resultado.liquidacionFinal.diasTrabajadosMes.dias})
+                  </span>
+                  <span>{fmt(resultado.liquidacionFinal.diasTrabajadosMes.monto)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>SAC proporcional</span>
+                  <span>{fmt(resultado.liquidacionFinal.sacProporcional)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>
+                    Vacaciones no gozadas ({resultado.liquidacionFinal.vacacionesNoGozadas.dias}{" "}
+                    día/s)
+                  </span>
+                  <span>{fmt(resultado.liquidacionFinal.vacacionesNoGozadas.monto)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Integración mes de despido (art. 233)</span>
+                  <span>{fmt(resultado.liquidacionFinal.integracionMesDespido)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>SAC sobre integración</span>
+                  <span>{fmt(resultado.liquidacionFinal.sacSobreIntegracion)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>SAC sobre preaviso</span>
+                  <span>{fmt(resultado.liquidacionFinal.sacSobrePreaviso)}</span>
+                </div>
+                <div className="flex justify-between border-t pt-2 font-medium">
+                  <span>Subtotal liquidación final</span>
+                  <span>{fmt(resultado.liquidacionFinal.subtotalFinal)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Preaviso (art. 231)</CardTitle>
@@ -172,10 +226,16 @@ export default async function DesvinculacionDetailPage({
           )}
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="space-y-2 pt-6">
+              {resultado.liquidacionFinal && (
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Indemnización</span>
+                  <span>{fmt(evento.montoTotal)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-lg font-semibold">
-                <span>Monto total</span>
-                <span>{fmt(evento.montoTotal)}</span>
+                <span>{resultado.totalGeneral ? "Total general" : "Monto total"}</span>
+                <span>{fmt(resultado.totalGeneral ?? evento.montoTotal)}</span>
               </div>
             </CardContent>
           </Card>
