@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatFechaAR } from "@/lib/fecha";
 import { FamiliaresPanel } from "./familiares-panel";
+import { GananciasLegajoPanel } from "./ganancias-legajo-panel";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -99,6 +100,33 @@ export default async function LegajoDetailPage({
             conyugeEmbarazada={legajo.conyugeEmbarazada}
             igfDeclarado={legajo.igfDeclarado != null ? String(legajo.igfDeclarado) : null}
             zonaAsignacion={legajo.zonaAsignacion}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Impuesto a las Ganancias</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Opt-in por legajo. Si se activa, la liquidación calcula la retención de 4ta categoría
+            (método acumulado) con los parámetros de Configuración → Ganancias.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <GananciasLegajoPanel
+            legajoId={legajo.id}
+            config={
+              legajo.gananciasConfig
+                ? {
+                    liquidaGanancias: legajo.gananciasConfig.liquidaGanancias,
+                    computaConyuge: legajo.gananciasConfig.computaConyuge,
+                    cantidadHijosACargo: legajo.gananciasConfig.cantidadHijosACargo,
+                    otrasDeduccionesMensuales: String(
+                      legajo.gananciasConfig.otrasDeduccionesMensuales,
+                    ),
+                  }
+                : null
+            }
           />
         </CardContent>
       </Card>

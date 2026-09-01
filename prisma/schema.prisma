@@ -173,6 +173,8 @@ model Legajo {
   eventosDesvinculacion EventoDesvinculacion[]
   vacacionPeriodos      VacacionPeriodo[]
   familiares            FamiliarACargo[]
+  gananciasConfig       GananciasLegajoConfig?
+  gananciasAcumulados   GananciasAcumulado[]
 
   @@unique([empresaId, numeroLegajo])
   @@index([empresaId])
@@ -204,6 +206,71 @@ enum TipoAsignacionFamiliar {
   HIJO_DISCAPACIDAD
   PRENATAL
   AYUDA_ESCOLAR
+}
+
+// ---------- Impuesto a las Ganancias (retención 4ta categoría) ----------
+
+/// Parámetros anuales del impuesto, parametrizables por vigencia. El contador carga los
+/// valores oficiales de ARCA (MNI, deducción especial, cargas de familia) y la escala del
+/// art. 94. El motor prorratea por mes (cálculo acumulado).
+model GananciasParametro {
+  id                String                @id @default(cuid())
+  mni               Decimal               @db.Decimal(16, 2) // ganancia no imponible (anual)
+  deduccionEspecial Decimal               @db.Decimal(16, 2) // relación de dependencia, valor final ya incrementado (anual)
+  deduccionConyuge  Decimal               @default(0) @db.Decimal(16, 2)
+  deduccionHijo     Decimal               @default(0) @db.Decimal(16, 2)
+  vigenciaDesde     DateTime
+  vigenciaHasta     DateTime?
+  createdAt         DateTime              @default(now())
+  tramos            GananciasEscalaTramo[]
+
+  @@index([vigenciaDesde])
+}
+
+/// Tramo de la escala del art. 94 (valores ANUALES). impuesto = montoFijo + (base − desde) × porcentaje.
+model GananciasEscalaTramo {
+  id         String             @id @default(cuid())
+  parametroId String
+  parametro  GananciasParametro @relation(fields: [parametroId], references: [id], onDelete: Cascade)
+  desde      Decimal            @db.Decimal(16, 2)
+  hasta      Decimal?           @db.Decimal(16, 2) // null = último tramo
+  montoFijo  Decimal            @default(0) @db.Decimal(16, 2)
+  porcentaje Decimal            @db.Decimal(6, 4) // fracción, ej. 0.35
+  orden      Int                @default(0)
+
+  @@index([parametroId])
+}
+
+/// Configuración de Ganancias por legajo. Opt-in: sin esto el legajo no retiene.
+model GananciasLegajoConfig {
+  id                       String   @id @default(cuid())
+  legajoId                 String   @unique
+  legajo                   Legajo   @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  liquidaGanancias         Boolean  @default(false)
+  computaConyuge           Boolean  @default(false)
+  cantidadHijosACargo      Int      @default(0)
+  /// Suma mensual de deducciones personales (alquiler, hipoteca, seguros, médicos, servicio
+  /// doméstico, donaciones, gastos educativos, etc.). El contador carga el total ya topeado.
+  otrasDeduccionesMensuales Decimal @default(0) @db.Decimal(14, 2)
+  detalleJson              Json? // opcional: desglose de las deducciones
+  updatedAt                DateTime @updatedAt
+}
+
+/// Acumulado anual de Ganancias por legajo y mes (para el cálculo acumulado de la retención).
+model GananciasAcumulado {
+  id                      String   @id @default(cuid())
+  legajoId                String
+  legajo                  Legajo   @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  anio                    Int
+  mes                     Int
+  gananciaNetaAcum        Decimal  @db.Decimal(16, 2)
+  impuestoDeterminadoAcum Decimal  @db.Decimal(16, 2)
+  retenidoAcum            Decimal  @db.Decimal(16, 2)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@unique([legajoId, anio, mes])
+  @@index([legajoId, anio])
 }
 
 /// Escala de asignaciones familiares (SUAF). Parametrizable: el contador carga los montos

@@ -15,6 +15,9 @@ export default function ConfiguracionLayout({ children }: { children: React.Reac
           <Link href="/configuracion/asignaciones" className="text-primary hover:underline">
             Asignaciones familiares
           </Link>
+          <Link href="/configuracion/ganancias" className="text-primary hover:underline">
+            Ganancias
+          </Link>
         </nav>
       </div>
       {children}

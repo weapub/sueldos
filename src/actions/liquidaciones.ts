@@ -12,6 +12,7 @@ import {
   CODIGOS_SINTETICOS,
   conceptoSinteticoPorCodigo,
 } from "@/lib/payroll/conceptosSinteticos";
+import { calcularRetencionGanancias } from "@/lib/payroll/ganancias";
 import { money, sum, type Money } from "@/lib/payroll/money";
 import type { ConceptoInput } from "@/lib/payroll/types";
 import { horaExtraSchema } from "@/lib/validation/liquidaciones";
@@ -125,7 +126,7 @@ async function calcularYGuardarLiquidacionLegajo(params: {
 }) {
   const legajo = await db.legajo.findUniqueOrThrow({
     where: { id: params.legajoId },
-    include: { categoria: true },
+    include: { categoria: true, gananciasConfig: true },
   });
   const tasas = await getTasasVigentes(params.empresaId, new Date(params.anio, params.mes - 1, 1));
 
@@ -231,6 +232,77 @@ async function calcularYGuardarLiquidacionLegajo(params: {
     tasas,
   });
 
+  // --- Retención de Impuesto a las Ganancias (opt-in por legajo, cálculo acumulado RG 4003) ---
+  let retencionGanancias = money(0);
+  let acumGananciasNuevo:
+    | { gananciaNetaAcum: string; impuestoDeterminadoAcum: string; retenidoAcum: string }
+    | null = null;
+  if (legajo.gananciasConfig?.liquidaGanancias) {
+    const parametro = await db.gananciasParametro.findFirst({
+      where: {
+        vigenciaDesde: { lte: finDePeriodo },
+        OR: [{ vigenciaHasta: null }, { vigenciaHasta: { gt: finDePeriodo } }],
+      },
+      orderBy: { vigenciaDesde: "desc" },
+      include: { tramos: true },
+    });
+    if (!parametro) {
+      resultado.warnings.push(
+        "Ganancias: no hay parámetros vigentes cargados — no se calculó la retención.",
+      );
+    } else {
+      const acumPrevio = await db.gananciasAcumulado.findFirst({
+        where: {
+          legajoId: params.legajoId,
+          OR: [{ anio: { lt: params.anio } }, { anio: params.anio, mes: { lt: params.mes } }],
+        },
+        orderBy: [{ anio: "desc" }, { mes: "desc" }],
+      });
+      const deduccionesGeneralesMes = resultado.conceptos
+        .filter((c) => c.tipo === "DEDUCCION" && (c.codigo === "APORTES" || c.subtipo === "SINDICAL"))
+        .reduce((acc, c) => acc.plus(c.montoAjustado), money(0));
+      const rg = calcularRetencionGanancias({
+        mes: params.mes,
+        esMesSAC: sacEsteMes,
+        remBrutaMes: resultado.totalRemunerativo,
+        deduccionesGeneralesMes,
+        otrasDeduccionesMes: money(legajo.gananciasConfig.otrasDeduccionesMensuales.toString()),
+        computaConyuge: legajo.gananciasConfig.computaConyuge,
+        cantidadHijos: legajo.gananciasConfig.cantidadHijosACargo,
+        acumPrevio: {
+          gananciaNetaAcum: money((acumPrevio?.gananciaNetaAcum ?? 0).toString()),
+          retenidoAcum: money((acumPrevio?.retenidoAcum ?? 0).toString()),
+        },
+        parametro: {
+          mni: money(parametro.mni.toString()),
+          deduccionEspecial: money(parametro.deduccionEspecial.toString()),
+          deduccionConyuge: money(parametro.deduccionConyuge.toString()),
+          deduccionHijo: money(parametro.deduccionHijo.toString()),
+          tramos: parametro.tramos.map((t) => ({
+            desde: money(t.desde.toString()),
+            hasta: t.hasta != null ? money(t.hasta.toString()) : null,
+            montoFijo: money(t.montoFijo.toString()),
+            porcentaje: money(t.porcentaje.toString()),
+          })),
+        },
+      });
+      resultado.warnings.push(...rg.warnings.map((w) => `Ganancias: ${w}`));
+      retencionGanancias = rg.retencionMes.gt(0) ? rg.retencionMes : money(0);
+      if (rg.retencionMes.lt(0)) {
+        resultado.warnings.push(
+          `Ganancias: corresponde devolución de $${rg.retencionMes.abs().toFixed(2)} — se registra en el acumulado pero no se descuenta acá.`,
+        );
+      }
+      acumGananciasNuevo = {
+        gananciaNetaAcum: rg.gananciaNetaAcum.toString(),
+        impuestoDeterminadoAcum: rg.impuestoDeterminadoAcum.toString(),
+        retenidoAcum: rg.retenidoAcum.toString(),
+      };
+    }
+  }
+  const totalDeduccionesFinal = resultado.totalDeducciones.plus(retencionGanancias);
+  const netoFinal = resultado.neto.minus(retencionGanancias);
+
   // Anclaje de cada línea que produjo el motor (BASICO/SAC/APORTES/antigüedad/presentismo/
   // espejo no remunerativo/deducciones de convenio/contribuciones patronales) a un
   // `ConceptoDefinicion` global por código. Los conceptos sintéticos que falten en el
@@ -247,6 +319,9 @@ async function calcularYGuardarLiquidacionLegajo(params: {
   for (const c of resultado.conceptos) {
     if (c.bloqueado || idsManuales.has(c.id) || sinteticoIdPorCodigo.has(c.codigo)) continue;
     codigosSinteticosFaltantes.add(c.codigo);
+  }
+  if (retencionGanancias.gt(0) && !sinteticoIdPorCodigo.has("RET_GANANCIAS")) {
+    codigosSinteticosFaltantes.add("RET_GANANCIAS");
   }
   for (const codigo of codigosSinteticosFaltantes) {
     const def = conceptoSinteticoPorCodigo(codigo);
@@ -303,9 +378,9 @@ async function calcularYGuardarLiquidacionLegajo(params: {
         diasTrabajados: dias,
         totalRemunerativo: resultado.totalRemunerativo.toString(),
         totalNoRemunerativo: resultado.totalNoRemunerativo.toString(),
-        totalDeducciones: resultado.totalDeducciones.toString(),
+        totalDeducciones: totalDeduccionesFinal.toString(),
         totalContribucionesPatronales: resultado.totalContribucionesPatronales.toString(),
-        neto: resultado.neto.toString(),
+        neto: netoFinal.toString(),
         snapshotInputJson: snapshotInput,
         calculadoPorUsuarioId: params.usuarioId,
       },
@@ -315,9 +390,9 @@ async function calcularYGuardarLiquidacionLegajo(params: {
         diasTrabajados: dias,
         totalRemunerativo: resultado.totalRemunerativo.toString(),
         totalNoRemunerativo: resultado.totalNoRemunerativo.toString(),
-        totalDeducciones: resultado.totalDeducciones.toString(),
+        totalDeducciones: totalDeduccionesFinal.toString(),
         totalContribucionesPatronales: resultado.totalContribucionesPatronales.toString(),
-        neto: resultado.neto.toString(),
+        neto: netoFinal.toString(),
         snapshotInputJson: snapshotInput,
         calculadoPorUsuarioId: params.usuarioId,
       },
@@ -345,6 +420,30 @@ async function calcularYGuardarLiquidacionLegajo(params: {
           consentimientoFirmado: c.consentimientoFirmado,
           orden: orden++,
         },
+      });
+    }
+
+    if (retencionGanancias.gt(0)) {
+      const defId = sinteticoIdPorCodigo.get("RET_GANANCIAS");
+      if (!defId) throw new Error('No se pudo mapear "RET_GANANCIAS" a un ConceptoDefinicion.');
+      await tx.conceptoLiquidacion.create({
+        data: {
+          liquidacionId: liq.id,
+          conceptoDefinicionId: defId,
+          descripcion: "Retención Impuesto a las Ganancias",
+          monto: retencionGanancias.toString(),
+          orden: orden++,
+        },
+      });
+    }
+
+    if (acumGananciasNuevo) {
+      await tx.gananciasAcumulado.upsert({
+        where: {
+          legajoId_anio_mes: { legajoId: params.legajoId, anio: params.anio, mes: params.mes },
+        },
+        create: { legajoId: params.legajoId, anio: params.anio, mes: params.mes, ...acumGananciasNuevo },
+        update: { ...acumGananciasNuevo },
       });
     }
 
