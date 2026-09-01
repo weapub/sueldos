@@ -1,4 +1,5 @@
 import { LoginForm } from "./login-form";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function LoginPage({
   searchParams,
@@ -16,6 +17,9 @@ export default async function LoginPage({
             "radial-gradient(circle at 15% 20%, oklch(0.546 0.215 262.9 / 12%), transparent 55%), radial-gradient(circle at 85% 80%, oklch(0.62 0.19 262 / 10%), transparent 55%)",
         }}
       />
+      <div className="absolute right-4 top-4">
+        <ThemeToggle variant="outline" />
+      </div>
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center space-y-3 text-center">
           <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground shadow-sm shadow-primary/30">

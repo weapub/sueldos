@@ -21,6 +21,8 @@ services:
     build:
       context: .
       target: runner
+      args:
+        SUELDOS_FRAME_ANCESTORS: ${SUELDOS_FRAME_ANCESTORS:-}
     restart: unless-stopped
     container_name: api-sueldos
     env_file: .env

@@ -2,6 +2,7 @@ import { requireSession } from "@/lib/authz";
 import { logoutAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "./sidebar-nav";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { LogOut } from "lucide-react";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -58,6 +59,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </span>
             </div>
           </div>
+          <ThemeToggle
+            className="w-full text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-white"
+          />
           <form action={logoutAction}>
             <Button
               type="submit"

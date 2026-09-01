@@ -9,6 +9,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV DATABASE_URL="postgresql://build:build@localhost:5432/build?schema=public"
+# Orígenes autorizados a embeber sueldos en <iframe> (integración como módulo de
+# systeg) — next.config.ts la lee en build time para el header CSP frame-ancestors.
+ARG SUELDOS_FRAME_ANCESTORS
+ENV SUELDOS_FRAME_ANCESTORS=$SUELDOS_FRAME_ANCESTORS
 RUN npx prisma generate
 RUN npm run build
 
