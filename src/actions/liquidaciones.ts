@@ -311,8 +311,35 @@ async function calcularYGuardarLiquidacionLegajo(params: {
       };
     }
   }
-  const totalDeduccionesFinal = resultado.totalDeducciones.plus(retencionGanancias);
-  const netoFinal = resultado.neto.minus(retencionGanancias);
+  // --- Adelantos / anticipos de sueldo pendientes de descontar ---
+  // Se toman los que están sin imputar y también los que ya se imputaron a ESTA misma
+  // liquidación (recálculo del período): dentro de la transacción se liberan y se vuelven
+  // a imputar, así el descuento acompaña al recálculo.
+  const liqPrevia = await db.liquidacionMensual.findUnique({
+    where: { periodoId_legajoId: { periodoId: params.periodoId, legajoId: params.legajoId } },
+    select: { id: true },
+  });
+  const adelantosPendientes = await db.adelantoSueldo.findMany({
+    where: {
+      legajoId: params.legajoId,
+      OR: [
+        { aplicadoEnLiquidacionId: null },
+        ...(liqPrevia ? [{ aplicadoEnLiquidacionId: liqPrevia.id }] : []),
+      ],
+    },
+    orderBy: { fecha: "asc" },
+  });
+  const totalAdelantos = adelantosPendientes.reduce((acc, a) => acc.plus(money(a.monto.toString())), money(0));
+  const adelantoIdsAAplicar = adelantosPendientes.map((a) => a.id);
+  const netoAntesAdelantos = resultado.neto.minus(retencionGanancias);
+  if (totalAdelantos.gt(0) && netoAntesAdelantos.gt(0) && totalAdelantos.gt(netoAntesAdelantos.times(0.2))) {
+    resultado.warnings.push(
+      `Adelantos: el descuento ($${totalAdelantos.toFixed(2)}) supera el 20% del neto — revisá el tope del art. 133 LCT o dividí el anticipo en varias cuotas.`,
+    );
+  }
+
+  const totalDeduccionesFinal = resultado.totalDeducciones.plus(retencionGanancias).plus(totalAdelantos);
+  const netoFinal = resultado.neto.minus(retencionGanancias).minus(totalAdelantos);
 
   // Anclaje de cada línea que produjo el motor (BASICO/SAC/APORTES/antigüedad/presentismo/
   // espejo no remunerativo/deducciones de convenio/contribuciones patronales) a un
@@ -333,6 +360,9 @@ async function calcularYGuardarLiquidacionLegajo(params: {
   }
   if (retencionGanancias.gt(0) && !sinteticoIdPorCodigo.has("RET_GANANCIAS")) {
     codigosSinteticosFaltantes.add("RET_GANANCIAS");
+  }
+  if (totalAdelantos.gt(0) && !sinteticoIdPorCodigo.has("ADELANTO_SUELDO")) {
+    codigosSinteticosFaltantes.add("ADELANTO_SUELDO");
   }
   for (const codigo of codigosSinteticosFaltantes) {
     const def = conceptoSinteticoPorCodigo(codigo);
@@ -455,6 +485,33 @@ async function calcularYGuardarLiquidacionLegajo(params: {
         },
         create: { legajoId: params.legajoId, anio: params.anio, mes: params.mes, ...acumGananciasNuevo },
         update: { ...acumGananciasNuevo },
+      });
+    }
+
+    // Adelantos: se liberan los que estuvieran imputados a esta liquidación y se re-imputan
+    // los pendientes tomados arriba, para que el recálculo del período sea idempotente.
+    await tx.adelantoSueldo.updateMany({
+      where: { aplicadoEnLiquidacionId: liq.id },
+      data: { aplicadoEnLiquidacionId: null },
+    });
+    if (totalAdelantos.gt(0)) {
+      const defId = sinteticoIdPorCodigo.get("ADELANTO_SUELDO");
+      if (!defId) throw new Error('No se pudo mapear "ADELANTO_SUELDO" a un ConceptoDefinicion.');
+      await tx.conceptoLiquidacion.create({
+        data: {
+          liquidacionId: liq.id,
+          conceptoDefinicionId: defId,
+          descripcion:
+            adelantosPendientes.length === 1
+              ? "Adelanto de sueldo"
+              : `Adelantos de sueldo (${adelantosPendientes.length})`,
+          monto: totalAdelantos.toString(),
+          orden: orden++,
+        },
+      });
+      await tx.adelantoSueldo.updateMany({
+        where: { id: { in: adelantoIdsAAplicar } },
+        data: { aplicadoEnLiquidacionId: liq.id },
       });
     }
 

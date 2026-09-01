@@ -32,6 +32,7 @@ export async function obtenerLegajo(legajoId: string) {
         familiares: { orderBy: { createdAt: "asc" } },
         gananciasConfig: true,
         licencias: { orderBy: { desde: "desc" } },
+        adelantos: { orderBy: { fecha: "desc" } },
       },
     });
     if (!legajo) return { ok: false as const, error: "Legajo no encontrado." };

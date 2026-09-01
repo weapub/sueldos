@@ -8,6 +8,7 @@ import { formatFechaAR } from "@/lib/fecha";
 import { FamiliaresPanel } from "./familiares-panel";
 import { GananciasLegajoPanel } from "./ganancias-legajo-panel";
 import { LicenciasPanel } from "./licencias-panel";
+import { AdelantosPanel } from "./adelantos-panel";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -128,6 +129,29 @@ export default async function LegajoDetailPage({
               hasta: l.hasta,
               conGoce: l.conGoce,
               observaciones: l.observaciones,
+            }))}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Adelantos / anticipos de sueldo</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Cada adelanto pendiente se descuenta como deducción en la próxima liquidación en
+            borrador del legajo y queda marcado como descontado. Al recalcular ese período el
+            descuento se recalcula solo.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <AdelantosPanel
+            legajoId={legajo.id}
+            adelantos={legajo.adelantos.map((a) => ({
+              id: a.id,
+              fecha: a.fecha,
+              monto: String(a.monto),
+              observaciones: a.observaciones,
+              aplicadoEnLiquidacionId: a.aplicadoEnLiquidacionId,
             }))}
           />
         </CardContent>

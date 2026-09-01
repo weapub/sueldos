@@ -54,6 +54,7 @@ export const CONCEPTOS_SINTETICOS: ConceptoSinteticoDef[] = [
   { codigo: "30009", codigoArca: "810004", nombre: "FAECYS NO REM", tipo: "DEDUCCION", subtipo: "SINDICAL", rubroRecibo: "SINDICAL", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 96 },
   { codigo: "30010", codigoArca: "820000", nombre: "IPS FSA", tipo: "DEDUCCION", rubroRecibo: "SEGURIDAD_SOCIAL", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 97 },
   { codigo: "RET_GANANCIAS", codigoArca: "830000", nombre: "Retención Impuesto a las Ganancias", tipo: "DEDUCCION", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 98 },
+  { codigo: "ADELANTO_SUELDO", codigoArca: "840000", nombre: "Adelanto de sueldo", tipo: "DEDUCCION", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 99 },
 
   // Contribuciones patronales (Sección B del recibo Anexo III)
   { codigo: "CP_JUBILACION", nombre: "Contribución jubilación (patronal)", tipo: "CONTRIBUCION_PATRONAL", rubroRecibo: "SEGURIDAD_SOCIAL", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 100 },

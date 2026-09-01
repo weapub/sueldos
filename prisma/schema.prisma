@@ -176,6 +176,7 @@ model Legajo {
   gananciasConfig       GananciasLegajoConfig?
   gananciasAcumulados   GananciasAcumulado[]
   licencias             Licencia[]
+  adelantos             AdelantoSueldo[]
 
   @@unique([empresaId, numeroLegajo])
   @@index([empresaId])
@@ -314,6 +315,23 @@ model EscalaAsignacionFamiliar {
   createdAt     DateTime               @default(now())
 
   @@index([tipo, zona, vigenciaDesde])
+}
+
+/// Adelanto / anticipo de sueldo entregado al trabajador. La próxima liquidación mensual
+/// en borrador del legajo lo descuenta como concepto DEDUCCION y lo marca como aplicado
+/// (`aplicadoEnLiquidacionId`). Al recalcular esa misma liquidación se libera y se vuelve
+/// a imputar, de modo que el descuento sigue al recálculo del período.
+model AdelantoSueldo {
+  id                      String    @id @default(cuid())
+  legajoId                String
+  legajo                  Legajo    @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  fecha                   DateTime  @default(now())
+  monto                   Decimal   @db.Decimal(14, 2)
+  observaciones           String?
+  aplicadoEnLiquidacionId String? // null = pendiente de descontar
+  createdAt               DateTime  @default(now())
+
+  @@index([legajoId, aplicadoEnLiquidacionId])
 }
 
 model VacacionPeriodo {
