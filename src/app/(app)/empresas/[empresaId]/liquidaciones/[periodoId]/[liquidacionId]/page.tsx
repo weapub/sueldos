@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireEmpresaAccess } from "@/lib/authz";
 import { listarCatalogoConceptos } from "@/actions/liquidaciones";
+import { calcularAsignacionesInformativas } from "@/lib/payroll/asignaciones";
+import { money } from "@/lib/payroll/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,7 +45,7 @@ export default async function ReciboPage({
   const liquidacion = await db.liquidacionMensual.findUnique({
     where: { id: liquidacionId },
     include: {
-      legajo: { include: { empresa: true, categoria: true } },
+      legajo: { include: { empresa: true, categoria: true, familiares: true } },
       periodo: true,
       conceptos: { include: { conceptoDefinicion: true }, orderBy: { orden: "asc" } },
     },
@@ -104,6 +106,41 @@ export default async function ReciboPage({
     haberes: totalRem + totalNoRem,
     basico: Number(liquidacion.legajo.sueldoBasico),
   };
+
+  // Asignaciones familiares (informativo — las paga ANSES, no integran el recibo).
+  const lg = liquidacion.legajo;
+  const tieneFamiliares = lg.familiares.length > 0 || lg.conyugeEmbarazada;
+  const fechaPeriodo = new Date(
+    Date.UTC(liquidacion.periodo.anio, liquidacion.periodo.mes - 1, 1),
+  );
+  let asignaciones: ReturnType<typeof calcularAsignacionesInformativas> | null = null;
+  if (tieneFamiliares) {
+    const escalaFilas = await db.escalaAsignacionFamiliar.findMany({
+      where: {
+        vigenciaDesde: { lte: fechaPeriodo },
+        OR: [{ vigenciaHasta: null }, { vigenciaHasta: { gt: fechaPeriodo } }],
+      },
+    });
+    asignaciones = calcularAsignacionesInformativas({
+      familiares: lg.familiares.map((f) => ({
+        vinculo: f.vinculo,
+        fechaNacimiento: f.fechaNacimiento,
+        enEscolaridad: f.enEscolaridad,
+      })),
+      conyugeEmbarazada: lg.conyugeEmbarazada,
+      igf: money((lg.igfDeclarado ?? liquidacion.totalRemunerativo).toString()),
+      zona: lg.zonaAsignacion,
+      esMesAyudaEscolar: liquidacion.periodo.mes === 3,
+      fechaReferencia: fechaPeriodo,
+      escala: escalaFilas.map((r) => ({
+        tipo: r.tipo,
+        zona: r.zona,
+        igfDesde: money(r.igfDesde.toString()),
+        igfHasta: r.igfHasta != null ? money(r.igfHasta.toString()) : null,
+        monto: money(r.monto.toString()),
+      })),
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -235,6 +272,60 @@ export default async function ReciboPage({
           </CardHeader>
           <CardContent>
             <HorasExtraPanel liquidacionId={liquidacion.id} horasExtra={horasExtraFilas} />
+          </CardContent>
+        </Card>
+      )}
+
+      {asignaciones && (
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle className="text-base">Asignaciones familiares (informativo)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Las paga ANSES directo al trabajador (SUAF). No integran este recibo ni el neto.
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            {asignaciones.lineas.length === 0 ? (
+              <p className="p-6 text-sm text-muted-foreground">
+                Sin asignaciones para los familiares cargados / IGF del período.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Concepto</TableHead>
+                    <TableHead className="text-right">Cant.</TableHead>
+                    <TableHead className="text-right">Unitario</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {asignaciones.lineas.map((l) => (
+                    <TableRow key={l.tipo}>
+                      <TableCell>{l.descripcion}</TableCell>
+                      <TableCell className="text-right">{l.cantidad}</TableCell>
+                      <TableCell className="text-right">{fmt(l.montoUnitario)}</TableCell>
+                      <TableCell className="text-right">{fmt(l.montoTotal)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell className="font-medium" colSpan={3}>
+                      Total estimado ANSES
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {fmt(asignaciones.total)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            )}
+            {asignaciones.warnings.length > 0 && (
+              <div className="space-y-1 p-4 text-xs text-amber-600 dark:text-amber-500">
+                {asignaciones.warnings.map((w, i) => (
+                  <p key={i}>• {w}</p>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatFechaAR } from "@/lib/fecha";
+import { FamiliaresPanel } from "./familiares-panel";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -74,6 +75,31 @@ export default async function LegajoDetailPage({
             }
           />
           <Field label="Obra social" value={legajo.obraSocial ?? "—"} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Familiares a cargo / asignaciones familiares</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Informativo: ANSES paga las asignaciones directo al trabajador (SUAF), no integran el
+            recibo. El cálculo estimado aparece en cada liquidación.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <FamiliaresPanel
+            legajoId={legajo.id}
+            familiares={legajo.familiares.map((f) => ({
+              id: f.id,
+              nombre: f.nombre,
+              vinculo: f.vinculo,
+              fechaNacimiento: f.fechaNacimiento,
+              enEscolaridad: f.enEscolaridad,
+            }))}
+            conyugeEmbarazada={legajo.conyugeEmbarazada}
+            igfDeclarado={legajo.igfDeclarado != null ? String(legajo.igfDeclarado) : null}
+            zonaAsignacion={legajo.zonaAsignacion}
+          />
         </CardContent>
       </Card>
     </div>

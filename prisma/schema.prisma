@@ -139,6 +139,10 @@ model Legajo {
   // Datos familiares / convencionales (EMPLEADOS, columnas O-S de GONZALEZ.xlsm)
   conyuge              Boolean @default(false)
   cantidadHijos        Int     @default(0)
+  // Asignaciones familiares (SUAF) — informativo: ANSES las paga directo, no integran el recibo.
+  conyugeEmbarazada   Boolean  @default(false) // dispara la asignación prenatal
+  igfDeclarado        Decimal? @db.Decimal(14, 2) // Ingreso del Grupo Familiar declarado; si es null se usa el remunerativo del período
+  zonaAsignacion      String   @default("GENERAL") // zona a efectos del tramo de la escala (GENERAL / ZONA 1 / …)
   correspondeCCT       Boolean @default(true) // CCT SI/NO
   correspondeSVO       Boolean @default(true) // SCVO (seguro colectivo de vida obligatorio) SI/NO
   correspondeReduccion Boolean @default(false)
@@ -168,10 +172,54 @@ model Legajo {
   liquidaciones         LiquidacionMensual[]
   eventosDesvinculacion EventoDesvinculacion[]
   vacacionPeriodos      VacacionPeriodo[]
+  familiares            FamiliarACargo[]
 
   @@unique([empresaId, numeroLegajo])
   @@index([empresaId])
   @@index([categoriaId])
+}
+
+enum VinculoFamiliar {
+  HIJO
+  HIJO_CON_DISCAPACIDAD
+  CONYUGE
+  OTRO
+}
+
+model FamiliarACargo {
+  id              String          @id @default(cuid())
+  legajoId        String
+  legajo          Legajo          @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  nombre          String
+  vinculo         VinculoFamiliar
+  fechaNacimiento DateTime?
+  enEscolaridad   Boolean         @default(false) // dispara la ayuda escolar anual
+  createdAt       DateTime        @default(now())
+
+  @@index([legajoId])
+}
+
+enum TipoAsignacionFamiliar {
+  HIJO
+  HIJO_DISCAPACIDAD
+  PRENATAL
+  AYUDA_ESCOLAR
+}
+
+/// Escala de asignaciones familiares (SUAF). Parametrizable: el contador carga los montos
+/// oficiales de ANSES por tipo, tramo de IGF y zona, con vigencia. Uso informativo.
+model EscalaAsignacionFamiliar {
+  id            String                 @id @default(cuid())
+  tipo          TipoAsignacionFamiliar
+  zona          String                 @default("GENERAL")
+  igfDesde      Decimal                @default(0) @db.Decimal(14, 2)
+  igfHasta      Decimal?               @db.Decimal(14, 2) // null = sin tope superior
+  monto         Decimal                @db.Decimal(14, 2)
+  vigenciaDesde DateTime
+  vigenciaHasta DateTime?
+  createdAt     DateTime               @default(now())
+
+  @@index([tipo, zona, vigenciaDesde])
 }
 
 model VacacionPeriodo {

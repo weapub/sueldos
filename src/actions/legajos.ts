@@ -26,7 +26,11 @@ export async function obtenerLegajo(legajoId: string) {
   try {
     const legajo = await db.legajo.findUnique({
       where: { id: legajoId },
-      include: { categoria: true, empresa: true },
+      include: {
+        categoria: true,
+        empresa: true,
+        familiares: { orderBy: { createdAt: "asc" } },
+      },
     });
     if (!legajo) return { ok: false as const, error: "Legajo no encontrado." };
     await requireEmpresaAccess(legajo.empresaId);
