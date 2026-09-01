@@ -42,6 +42,11 @@ export default async function LegajoDetailPage({
             {legajo.situacion}
           </Badge>
           <Button asChild variant="secondary">
+            <a href={`/api/certificado-art80/${legajoId}/pdf`} target="_blank" rel="noreferrer">
+              Certificado art. 80
+            </a>
+          </Button>
+          <Button asChild variant="secondary">
             <Link href={`/empresas/${empresaId}/legajos/${legajoId}/editar`}>Editar</Link>
           </Button>
         </div>

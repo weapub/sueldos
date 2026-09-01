@@ -52,6 +52,9 @@ export default async function EmpresaDetailPage({
           <Button asChild variant="secondary">
             <Link href={`/empresas/${empresaId}/fal`}>FAL</Link>
           </Button>
+          <Button asChild variant="secondary">
+            <Link href={`/empresas/${empresaId}/neto-bruto`}>Neto → Bruto</Link>
+          </Button>
         </div>
       </div>
 
