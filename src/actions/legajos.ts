@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireEmpresaAccess, requireEscritura, AuthzError } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 import { legajoSchema, categoriaConvenioSchema } from "@/lib/validation/legajos";
+import { CATALOGO_CCT_130_75 } from "@/lib/catalogoConvenios";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/actions/empresas";
 
@@ -167,6 +168,61 @@ export async function darDeBajaLegajo(legajoId: string, empresaId: string, fecha
     return { ok: true, data: undefined };
   } catch (err) {
     return { ok: false, error: err instanceof AuthzError ? err.message : "Error al dar de baja el legajo." };
+  }
+}
+
+/**
+ * Crea de una sola vez todas las categorías del CCT 130/75 (escala FAECYS) que aún no
+ * existan para la empresa. Matchea por nombre (case-insensitive) para no duplicar.
+ */
+export async function cargarEscalaCCT13075(
+  empresaId: string,
+  vigenciaDesde: string,
+): Promise<ActionResult<{ creadas: number; salteadas: number }>> {
+  try {
+    const session = await requireEscritura(empresaId);
+    if (!vigenciaDesde) return { ok: false, error: "Elegí la fecha de vigencia." };
+    const vigencia = new Date(vigenciaDesde);
+    if (Number.isNaN(vigencia.getTime())) return { ok: false, error: "Fecha de vigencia inválida." };
+
+    const existentes = await db.categoriaConvenio.findMany({
+      where: { empresaId },
+      select: { nombre: true },
+    });
+    const yaHay = new Set(existentes.map((c) => c.nombre.trim().toLowerCase()));
+
+    const aCrear = CATALOGO_CCT_130_75.filter((p) => !yaHay.has(p.nombre.trim().toLowerCase()));
+    if (aCrear.length > 0) {
+      await db.categoriaConvenio.createMany({
+        data: aCrear.map((p) => ({
+          empresaId,
+          nombre: p.nombre,
+          convenioNombre: p.convenioNombre,
+          salarioBaseConvenio: p.salarioBaseConvenio,
+          remuneracionNoRemunerativa: p.remuneracionNoRemunerativa,
+          vigenciaDesde: vigencia,
+        })),
+      });
+    }
+
+    await logAudit({
+      usuarioId: session.user.id,
+      accion: "CATEGORIAS_CCT_CARGADAS",
+      entidad: "Empresa",
+      entidadId: empresaId,
+      detalle: { creadas: aCrear.length, vigenciaDesde },
+    });
+
+    revalidatePath(`/empresas/${empresaId}`);
+    return {
+      ok: true,
+      data: { creadas: aCrear.length, salteadas: CATALOGO_CCT_130_75.length - aCrear.length },
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof AuthzError ? err.message : "Error al cargar la escala CCT 130/75.",
+    };
   }
 }
 

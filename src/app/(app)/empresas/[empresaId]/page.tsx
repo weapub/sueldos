@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CategoriaForm } from "./categoria-form";
+import { CargarEscalaCCT } from "./cargar-escala-cct";
 import { formatFechaAR } from "@/lib/fecha";
 import {
   Table,
@@ -87,6 +88,7 @@ export default async function EmpresaDetailPage({
                       <TableHead>Nombre</TableHead>
                       <TableHead>Convenio</TableHead>
                       <TableHead>Salario base (tope art. 245)</TableHead>
+                      <TableHead>No remunerativo</TableHead>
                       <TableHead>Vigencia desde</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -102,6 +104,12 @@ export default async function EmpresaDetailPage({
                           })}
                         </TableCell>
                         <TableCell>
+                          $
+                          {Number(cat.remuneracionNoRemunerativa).toLocaleString("es-AR", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </TableCell>
+                        <TableCell>
                           {formatFechaAR(cat.vigenciaDesde)}
                         </TableCell>
                       </TableRow>
@@ -109,6 +117,15 @@ export default async function EmpresaDetailPage({
                   </TableBody>
                 </Table>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Cargar escala completa</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CargarEscalaCCT empresaId={empresaId} />
             </CardContent>
           </Card>
 
