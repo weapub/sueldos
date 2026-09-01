@@ -175,6 +175,7 @@ model Legajo {
   familiares            FamiliarACargo[]
   gananciasConfig       GananciasLegajoConfig?
   gananciasAcumulados   GananciasAcumulado[]
+  licencias             Licencia[]
 
   @@unique([empresaId, numeroLegajo])
   @@index([empresaId])
@@ -186,6 +187,32 @@ enum VinculoFamiliar {
   HIJO_CON_DISCAPACIDAD
   CONYUGE
   OTRO
+}
+
+enum TipoLicencia {
+  ENFERMEDAD_INCULPABLE // art. 208 — con goce mientras dure el plazo (3/6/12 meses)
+  ACCIDENTE_TRABAJO // Ley 24.557 — primeros 10 días a cargo del empleador, luego prestación de la ART
+  MATERNIDAD // art. 177 — ANSES paga la asignación, el empleador no paga sueldo
+  LICENCIA_ESPECIAL // art. 158 — matrimonio, nacimiento, fallecimiento, examen (con goce)
+  SUSPENSION // art. 218-223 — sin goce (salvo art. 223 bis)
+  SIN_GOCE // permiso sin goce de haberes
+  OTRA
+}
+
+/// Licencia / ausencia de un legajo. La liquidación mensual descuenta los días NO pagados
+/// (según `conGoce` y el tipo) del prorrateo del básico.
+model Licencia {
+  id            String       @id @default(cuid())
+  legajoId      String
+  legajo        Legajo       @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  tipo          TipoLicencia
+  desde         DateTime
+  hasta         DateTime
+  conGoce       Boolean      @default(true) // el contador confirma (p. ej. art. 208 dentro del plazo)
+  observaciones String?
+  createdAt     DateTime     @default(now())
+
+  @@index([legajoId, desde])
 }
 
 model FamiliarACargo {

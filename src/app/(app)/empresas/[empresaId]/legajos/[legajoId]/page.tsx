@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatFechaAR } from "@/lib/fecha";
 import { FamiliaresPanel } from "./familiares-panel";
 import { GananciasLegajoPanel } from "./ganancias-legajo-panel";
+import { LicenciasPanel } from "./licencias-panel";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -100,6 +101,29 @@ export default async function LegajoDetailPage({
             conyugeEmbarazada={legajo.conyugeEmbarazada}
             igfDeclarado={legajo.igfDeclarado != null ? String(legajo.igfDeclarado) : null}
             zonaAsignacion={legajo.zonaAsignacion}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Licencias / ausencias</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            La liquidación descuenta del prorrateo del básico los días no pagados (sin goce, y
+            los días de ART a partir del 11°).
+          </p>
+        </CardHeader>
+        <CardContent>
+          <LicenciasPanel
+            legajoId={legajo.id}
+            licencias={legajo.licencias.map((l) => ({
+              id: l.id,
+              tipo: l.tipo,
+              desde: l.desde,
+              hasta: l.hasta,
+              conGoce: l.conGoce,
+              observaciones: l.observaciones,
+            }))}
           />
         </CardContent>
       </Card>

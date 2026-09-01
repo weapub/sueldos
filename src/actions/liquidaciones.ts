@@ -13,6 +13,7 @@ import {
   conceptoSinteticoPorCodigo,
 } from "@/lib/payroll/conceptosSinteticos";
 import { calcularRetencionGanancias } from "@/lib/payroll/ganancias";
+import { calcularDiasNoPagadosPorLicencias } from "@/lib/payroll/licencias";
 import { money, sum, type Money } from "@/lib/payroll/money";
 import type { ConceptoInput } from "@/lib/payroll/types";
 import { horaExtraSchema } from "@/lib/validation/liquidaciones";
@@ -134,6 +135,14 @@ async function calcularYGuardarLiquidacionLegajo(params: {
   const sacEsteMes = esMesSAC(params.mes);
   const finDePeriodo = new Date(Date.UTC(params.anio, params.mes, 0));
   const antiguedadAnios = antiguedadEnAnios(legajo.fechaIngreso, finDePeriodo);
+
+  // Licencias que se solapan con el mes → días que no se pagan (se restan del prorrateo).
+  const inicioDePeriodo = new Date(Date.UTC(params.anio, params.mes - 1, 1));
+  const licenciasDelMes = await db.licencia.findMany({
+    where: { legajoId: params.legajoId, desde: { lte: finDePeriodo }, hasta: { gte: inicioDePeriodo } },
+  });
+  const lic = calcularDiasNoPagadosPorLicencias(licenciasDelMes, params.anio, params.mes);
+  const diasTrabajadosEfectivos = Math.max(0, dias - lic.diasNoPagados);
   const remuneracionNoRemunerativa = money(legajo.categoria.remuneracionNoRemunerativa.toString());
   const tieneNoRemunerativo = remuneracionNoRemunerativa.gt(0);
   const aplicaRIFL =
@@ -218,7 +227,7 @@ async function calcularYGuardarLiquidacionLegajo(params: {
     },
     anio: params.anio,
     mes: params.mes,
-    diasTrabajados: dias,
+    diasTrabajados: diasTrabajadosEfectivos,
     diasEnMes: dias,
     esMesSAC: sacEsteMes,
     mejorRemuneracionSemestre,
@@ -231,6 +240,8 @@ async function calcularYGuardarLiquidacionLegajo(params: {
     })),
     tasas,
   });
+
+  resultado.warnings.push(...lic.warnings);
 
   // --- Retención de Impuesto a las Ganancias (opt-in por legajo, cálculo acumulado RG 4003) ---
   let retencionGanancias = money(0);
@@ -363,7 +374,7 @@ async function calcularYGuardarLiquidacionLegajo(params: {
   const snapshotInput: Prisma.InputJsonValue = {
     anio: params.anio,
     mes: params.mes,
-    diasTrabajados: dias,
+    diasTrabajados: diasTrabajadosEfectivos,
     diasEnMes: dias,
     esMesSAC: sacEsteMes,
     mejorRemuneracionSemestre: mejorRemuneracionSemestre?.toString() ?? null,
@@ -375,7 +386,7 @@ async function calcularYGuardarLiquidacionLegajo(params: {
     const liq = await tx.liquidacionMensual.upsert({
       where: { periodoId_legajoId: { periodoId: params.periodoId, legajoId: params.legajoId } },
       update: {
-        diasTrabajados: dias,
+        diasTrabajados: diasTrabajadosEfectivos,
         totalRemunerativo: resultado.totalRemunerativo.toString(),
         totalNoRemunerativo: resultado.totalNoRemunerativo.toString(),
         totalDeducciones: totalDeduccionesFinal.toString(),
@@ -387,7 +398,7 @@ async function calcularYGuardarLiquidacionLegajo(params: {
       create: {
         periodoId: params.periodoId,
         legajoId: params.legajoId,
-        diasTrabajados: dias,
+        diasTrabajados: diasTrabajadosEfectivos,
         totalRemunerativo: resultado.totalRemunerativo.toString(),
         totalNoRemunerativo: resultado.totalNoRemunerativo.toString(),
         totalDeducciones: totalDeduccionesFinal.toString(),

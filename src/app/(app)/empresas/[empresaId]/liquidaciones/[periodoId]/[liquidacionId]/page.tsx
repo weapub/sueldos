@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { requireEmpresaAccess } from "@/lib/authz";
 import { listarCatalogoConceptos } from "@/actions/liquidaciones";
 import { calcularAsignacionesInformativas } from "@/lib/payroll/asignaciones";
+import { calcularDiasNoPagadosPorLicencias } from "@/lib/payroll/licencias";
+import { TIPO_LICENCIA_LABEL } from "@/lib/validation/licencias";
 import { money } from "@/lib/payroll/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -97,6 +99,23 @@ export default async function ReciboPage({
     recargo: h.recargo,
     modalidad: h.modalidad,
   }));
+
+  const licenciasDelPeriodo = await db.licencia.findMany({
+    where: {
+      legajoId: liquidacion.legajoId,
+      desde: { lte: new Date(Date.UTC(liquidacion.periodo.anio, liquidacion.periodo.mes, 0)) },
+      hasta: { gte: new Date(Date.UTC(liquidacion.periodo.anio, liquidacion.periodo.mes - 1, 1)) },
+    },
+    orderBy: { desde: "asc" },
+  });
+  const licResumen =
+    licenciasDelPeriodo.length > 0
+      ? calcularDiasNoPagadosPorLicencias(
+          licenciasDelPeriodo,
+          liquidacion.periodo.anio,
+          liquidacion.periodo.mes,
+        )
+      : null;
 
   const totalRem = Number(liquidacion.totalRemunerativo);
   const totalNoRem = Number(liquidacion.totalNoRemunerativo);
@@ -272,6 +291,40 @@ export default async function ReciboPage({
           </CardHeader>
           <CardContent>
             <HorasExtraPanel liquidacionId={liquidacion.id} horasExtra={horasExtraFilas} />
+          </CardContent>
+        </Card>
+      )}
+
+      {licResumen && (
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle className="text-base">Licencias del período</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Días no pagados en total: <span className="font-medium">{licResumen.diasNoPagados}</span>{" "}
+              (se restaron del prorrateo del básico).
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="text-right">Días en el mes</TableHead>
+                  <TableHead className="text-right">No pagados</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {licResumen.detalle.map((d, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      {TIPO_LICENCIA_LABEL[d.tipo as keyof typeof TIPO_LICENCIA_LABEL] ?? d.tipo}
+                    </TableCell>
+                    <TableCell className="text-right">{d.diasEnMes}</TableCell>
+                    <TableCell className="text-right">{d.diasNoPagados}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       )}
