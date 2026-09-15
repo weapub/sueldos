@@ -13,6 +13,8 @@ function fmt(n: unknown) {
 }
 
 interface ResultadoJson {
+  tipo?: "LCT_ESTANDAR" | "FONDO_CESE_UOCRA";
+  fondoCeseLaboral?: { saldoActual: string };
   art245?: {
     baseArt245: string;
     antiguedadAnios: number;
@@ -50,7 +52,8 @@ export default async function DesvinculacionDetailPage({
   if (!result.ok) notFound();
   const evento = result.data;
   const resultado = evento.resultadoJson as ResultadoJson;
-  const yaCalculado = !!resultado?.art245;
+  const yaCalculado = !!resultado?.art245 || resultado?.tipo === "FONDO_CESE_UOCRA";
+  const esFondoCese = resultado?.tipo === "FONDO_CESE_UOCRA";
 
   return (
     <div className="space-y-6">
@@ -67,7 +70,7 @@ export default async function DesvinculacionDetailPage({
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          {yaCalculado && (
+          {yaCalculado && !esFondoCese && (
             <Button asChild variant="secondary">
               <a href={`/api/indemnizacion/${evento.id}/pdf`} target="_blank" rel="noreferrer">
                 Descargar PDF
@@ -95,45 +98,64 @@ export default async function DesvinculacionDetailPage({
         </p>
       ) : (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Indemnización por antigüedad (art. 245)</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground">Base art. 245</p>
-                <p>{fmt(resultado.art245!.baseArt245)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Antigüedad</p>
-                <p>{resultado.art245!.antiguedadAnios} año(s)</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Monto sin tope</p>
-                <p>{fmt(resultado.art245!.indemnizacionSinTope)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Tope convenio (3x)</p>
-                <p>{fmt(resultado.art245!.topeConvenio)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Con tope aplicado</p>
-                <p>{fmt(resultado.art245!.indemnizacionConTope)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Piso garantía 67%</p>
-                <p>{fmt(resultado.art245!.pisoGarantia67)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Piso 1 mes</p>
-                <p>{fmt(resultado.art245!.pisoUnMes)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Indemnización final</p>
-                <p className="font-semibold">{fmt(resultado.art245!.indemnizacionFinal)}</p>
-              </div>
-            </CardContent>
-          </Card>
+          {resultado.fondoCeseLaboral && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Fondo de Cese Laboral (Ley 22.250)</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  UOCRA: este monto es el saldo acumulado de la cuenta individual del trabajador
+                  (depósitos mensuales del empleador), no una indemnización art. 245 — no aplica
+                  tope ni piso de garantía.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">Saldo a retirar</p>
+                <p className="text-2xl font-semibold">{fmt(resultado.fondoCeseLaboral.saldoActual)}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {resultado.art245 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Indemnización por antigüedad (art. 245)</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Base art. 245</p>
+                  <p>{fmt(resultado.art245.baseArt245)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Antigüedad</p>
+                  <p>{resultado.art245.antiguedadAnios} año(s)</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Monto sin tope</p>
+                  <p>{fmt(resultado.art245.indemnizacionSinTope)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Tope convenio (3x)</p>
+                  <p>{fmt(resultado.art245.topeConvenio)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Con tope aplicado</p>
+                  <p>{fmt(resultado.art245.indemnizacionConTope)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Piso garantía 67%</p>
+                  <p>{fmt(resultado.art245.pisoGarantia67)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Piso 1 mes</p>
+                  <p>{fmt(resultado.art245.pisoUnMes)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">Indemnización final</p>
+                  <p className="font-semibold">{fmt(resultado.art245.indemnizacionFinal)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {resultado.liquidacionFinal && (
             <Card>
@@ -178,21 +200,23 @@ export default async function DesvinculacionDetailPage({
             </Card>
           )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Preaviso (art. 231)</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground">Meses de preaviso</p>
-                <p>{resultado.preaviso?.mesesPreaviso ?? 0}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Monto</p>
-                <p>{fmt(resultado.preaviso?.montoPreaviso ?? 0)}</p>
-              </div>
-            </CardContent>
-          </Card>
+          {resultado.preaviso && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Preaviso (art. 231)</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Meses de preaviso</p>
+                  <p>{resultado.preaviso.mesesPreaviso}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Monto</p>
+                  <p>{fmt(resultado.preaviso.montoPreaviso)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {evento.beneficiarios.length > 0 && (
             <Card>
@@ -229,7 +253,7 @@ export default async function DesvinculacionDetailPage({
             <CardContent className="space-y-2 pt-6">
               {resultado.liquidacionFinal && (
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Indemnización</span>
+                  <span>{esFondoCese ? "Fondo de Cese Laboral" : "Indemnización"}</span>
                   <span>{fmt(evento.montoTotal)}</span>
                 </div>
               )}

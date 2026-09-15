@@ -98,6 +98,9 @@ export interface TasasVigentes {
   presentismoPorcentajeUocra: Money;
   cuotaSindicalUocra: Money;
   aporteSolidarioUocra: Money;
+  /** Fondo de Cese Laboral UOCRA (ver `src/lib/payroll/fondoCese.ts`): % del primer año / desde el segundo. */
+  fondoCeseTasaPrimerAnio: Money;
+  fondoCeseTasaDesdeSegundoAnio: Money;
 }
 
 export type ModalidadHorasExtra = "PAGO" | "BANCO_HORAS" | "FRANCO_COMPENSATORIO";

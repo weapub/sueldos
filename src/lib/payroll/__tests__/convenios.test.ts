@@ -36,6 +36,8 @@ const tasas: TasasVigentes = {
   presentismoPorcentajeUocra: money(0.2),
   cuotaSindicalUocra: money(0.02),
   aporteSolidarioUocra: money(0.02),
+  fondoCeseTasaPrimerAnio: money(0.12),
+  fondoCeseTasaDesdeSegundoAnio: money(0.08),
 };
 
 describe("resolverReglasConvenio", () => {

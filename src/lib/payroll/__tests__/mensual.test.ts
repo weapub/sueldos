@@ -32,6 +32,8 @@ const tasas: TasasVigentes = {
   presentismoPorcentajeUocra: money(0),
   cuotaSindicalUocra: money(0),
   aporteSolidarioUocra: money(0),
+  fondoCeseTasaPrimerAnio: money(0),
+  fondoCeseTasaDesdeSegundoAnio: money(0),
 };
 
 describe("calcularLiquidacionMensual", () => {
@@ -408,6 +410,8 @@ describe("caso de regresión GONZALEZ IVAN (GONZALEZ.xlsm, legajo 3, período JU
     presentismoPorcentajeUocra: money(0),
     cuotaSindicalUocra: money(0),
     aporteSolidarioUocra: money(0),
+    fondoCeseTasaPrimerAnio: money(0),
+    fondoCeseTasaDesdeSegundoAnio: money(0),
   };
 
   const mejorRemuneracionSemestre = money("263517.79"); // básico + antigüedad + presentismo del propio período (sin historial previo)

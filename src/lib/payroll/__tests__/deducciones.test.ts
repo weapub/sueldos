@@ -32,6 +32,8 @@ const tasas: TasasVigentes = {
     presentismoPorcentajeUocra: money(0),
     cuotaSindicalUocra: money(0),
     aporteSolidarioUocra: money(0),
+    fondoCeseTasaPrimerAnio: money(0),
+    fondoCeseTasaDesdeSegundoAnio: money(0),
 };
 
 function sindical(nombre: string, monto: number): ConceptoInput {

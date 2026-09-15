@@ -9,6 +9,7 @@ import { FamiliaresPanel } from "./familiares-panel";
 import { GananciasLegajoPanel } from "./ganancias-legajo-panel";
 import { LicenciasPanel } from "./licencias-panel";
 import { AdelantosPanel } from "./adelantos-panel";
+import { FondoCesePanel } from "./fondo-cese-panel";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -156,6 +157,23 @@ export default async function LegajoDetailPage({
           />
         </CardContent>
       </Card>
+
+      {legajo.categoria.convenio === "UOCRA_22_250" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Fondo de Cese Laboral (Ley 22.250)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              UOCRA reemplaza la indemnización por antigüedad y el preaviso LCT por esta cuenta
+              individual: el empleador deposita 12% de la remuneración el primer año de
+              antigüedad y 8% desde el segundo, al confirmar cada período. Al cese, el saldo es
+              lo que corresponde retirar — no una indemnización calculada aparte.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <FondoCesePanel legajoId={legajo.id} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit";
 import { getTasasVigentes } from "@/lib/tasas";
 import { calcularLiquidacionMensual } from "@/lib/payroll/mensual";
 import { calcularContribucionMensualFAL } from "@/lib/payroll/fal";
+import { calcularDepositoMensualFCL } from "@/lib/payroll/fondoCese";
 import { antiguedadEnAnios } from "@/lib/payroll/vacaciones";
 import { calcularAntiguedadImporte } from "@/lib/payroll/convenio";
 import {
@@ -732,7 +733,10 @@ export async function confirmarPeriodo(periodoId: string): Promise<ActionResult>
   try {
     const periodo = await db.periodoLiquidacion.findUniqueOrThrow({
       where: { id: periodoId },
-      include: { empresa: true, liquidaciones: true },
+      include: {
+        empresa: true,
+        liquidaciones: { include: { legajo: { include: { categoria: true } } } },
+      },
     });
     const session = await requireEscritura(periodo.empresaId);
 
@@ -785,6 +789,44 @@ export async function confirmarPeriodo(periodoId: string): Promise<ActionResult>
             },
           });
           await tx.falCuenta.update({ where: { id: falCuenta.id }, data: { saldoActual: nuevoSaldo.toString() } });
+        }
+      }
+
+      // Fondo de Cese Laboral (Ley 22.250, UOCRA): a diferencia del FAL, es POR LEGAJO, no por
+      // empresa — cada trabajador UOCRA tiene su propia cuenta. Mismo guard de idempotencia por
+      // periodoId que el FAL, para que recalcular el período no duplique el depósito.
+      const legajosUocra = periodo.liquidaciones.filter((l) => l.legajo.categoria.convenio === "UOCRA_22_250");
+      if (legajosUocra.length > 0) {
+        const tasasFCL = await getTasasVigentes(periodo.empresaId, fechaPeriodo);
+        for (const liq of legajosUocra) {
+          const fondoCuenta = await tx.fondoCeseCuenta.upsert({
+            where: { legajoId: liq.legajoId },
+            update: {},
+            create: { legajoId: liq.legajoId, fechaAlta: liq.legajo.fechaIngreso, saldoActual: 0 },
+          });
+
+          const yaDevengado = await tx.fondoCeseMovimiento.findFirst({
+            where: { fondoCeseCuentaId: fondoCuenta.id, periodoId, tipo: "DEPOSITO_MENSUAL" },
+          });
+
+          if (yaDevengado) continue;
+
+          const antiguedadAniosLegajo = antiguedadEnAnios(liq.legajo.fechaIngreso, fechaPeriodo);
+          const deposito = calcularDepositoMensualFCL(money(liq.totalRemunerativo.toString()), antiguedadAniosLegajo, tasasFCL);
+          const nuevoSaldoFCL = money(fondoCuenta.saldoActual.toString()).plus(deposito);
+
+          await tx.fondoCeseMovimiento.create({
+            data: {
+              fondoCeseCuentaId: fondoCuenta.id,
+              tipo: "DEPOSITO_MENSUAL",
+              periodoId,
+              monto: deposito.toString(),
+              saldoResultante: nuevoSaldoFCL.toString(),
+              fecha: fechaPeriodo,
+              descripcion: `Depósito Fondo de Cese Laboral ${periodo.mes}/${periodo.anio}`,
+            },
+          });
+          await tx.fondoCeseCuenta.update({ where: { id: fondoCuenta.id }, data: { saldoActual: nuevoSaldoFCL.toString() } });
         }
       }
     });

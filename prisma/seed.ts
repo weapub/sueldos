@@ -49,6 +49,8 @@ async function main() {
     { clave: "PRESENTISMO_PORCENTAJE_UOCRA", valor: 0 },
     { clave: "CUOTA_SINDICAL_UOCRA", valor: 0 },
     { clave: "APORTE_SOLIDARIO_UOCRA", valor: 0 },
+    { clave: "FONDO_CESE_TASA_PRIMER_ANIO", valor: 0 },
+    { clave: "FONDO_CESE_TASA_DESDE_SEGUNDO_ANIO", valor: 0 },
     // FAL y topes de deducción (Ley 27.802)
     { clave: "FAL_GRANDE", valor: 0.01 },
     { clave: "FAL_PYME", valor: 0.025 },

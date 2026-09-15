@@ -65,6 +65,8 @@ export async function getTasasVigentes(empresaId: string, fecha: Date): Promise<
     presentismoPorcentajeUocra,
     cuotaSindicalUocra,
     aporteSolidarioUocra,
+    fondoCeseTasaPrimerAnio,
+    fondoCeseTasaDesdeSegundoAnio,
   ] = await Promise.all([
     resolverTasa(ClaveTasa.APORTE_JUBILACION, empresaId, fecha),
     resolverTasa(ClaveTasa.APORTE_LEY19032_PAMI, empresaId, fecha),
@@ -94,6 +96,8 @@ export async function getTasasVigentes(empresaId: string, fecha: Date): Promise<
     resolverTasa(ClaveTasa.PRESENTISMO_PORCENTAJE_UOCRA, empresaId, fecha),
     resolverTasa(ClaveTasa.CUOTA_SINDICAL_UOCRA, empresaId, fecha),
     resolverTasa(ClaveTasa.APORTE_SOLIDARIO_UOCRA, empresaId, fecha),
+    resolverTasa(ClaveTasa.FONDO_CESE_TASA_PRIMER_ANIO, empresaId, fecha),
+    resolverTasa(ClaveTasa.FONDO_CESE_TASA_DESDE_SEGUNDO_ANIO, empresaId, fecha),
   ]);
 
   return {
@@ -125,5 +129,7 @@ export async function getTasasVigentes(empresaId: string, fecha: Date): Promise<
     presentismoPorcentajeUocra,
     cuotaSindicalUocra,
     aporteSolidarioUocra,
+    fondoCeseTasaPrimerAnio,
+    fondoCeseTasaDesdeSegundoAnio,
   };
 }

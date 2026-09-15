@@ -153,32 +153,45 @@ export async function calcularYGuardarIndemnizacion(
       vinculo: b.vinculo,
     }));
 
-    const resultado = calcularIndemnizacion({
-      motivo: evento.motivo,
-      fechaIngreso: legajo.fechaIngreso,
-      fechaEgreso: evento.fechaEgreso,
-      enPeriodoDePrueba,
-      preavisoOtorgado: evento.preavisoOtorgado,
-      base: {
-        remuneracionFijaHabitual: money(legajo.sueldoBasico.toString()),
-        remuneracionesVariablesUltimos12Meses: remuneracionesVariables,
-      },
-      salarioBaseConvenio: money(legajo.categoria.salarioBaseConvenio.toString()),
-      fallecimiento: evento.motivo === "FALLECIMIENTO" ? { beneficiarios } : undefined,
-    });
+    const esUocra = legajo.categoria.convenio === "UOCRA_22_250";
+    const warnings: string[] = [];
 
-    // UOCRA (Ley 22.250) reemplaza preaviso e indemnización art. 245 por el Fondo de Cese
-    // Laboral — un mecanismo de cuenta individual del trabajador, no implementado todavía (ver
-    // FASE 6-C del roadmap). El cálculo de arriba usa el régimen LCT estándar, que NO aplica a
-    // este convenio: se avisa en vez de dejar salir un monto que parece válido pero no lo es.
-    if (legajo.categoria.convenio === "UOCRA_22_250") {
-      resultado.warnings.push(
-        "UOCRA (Ley 22.250): este convenio no usa indemnización por antigüedad art. 245 ni " +
-          "preaviso LCT — los reemplaza el Fondo de Cese Laboral (depósitos mensuales del " +
-          "empleador en una cuenta individual del trabajador). El sistema todavía no calcula " +
-          "el Fondo de Cese; los montos de indemnización/preaviso de abajo NO corresponden a " +
-          "este legajo y no deben usarse.",
+    // UOCRA (Ley 22.250) reemplaza preaviso e indemnización art. 245 por completo con el Fondo
+    // de Cese Laboral (cuenta individual del trabajador, devengada mes a mes al confirmar cada
+    // período — ver `confirmarPeriodo`). No corre `calcularIndemnizacion` para estos legajos:
+    // ese cálculo es del régimen LCT estándar, que no aplica acá.
+    const resultado = esUocra
+      ? null
+      : calcularIndemnizacion({
+          motivo: evento.motivo,
+          fechaIngreso: legajo.fechaIngreso,
+          fechaEgreso: evento.fechaEgreso,
+          enPeriodoDePrueba,
+          preavisoOtorgado: evento.preavisoOtorgado,
+          base: {
+            remuneracionFijaHabitual: money(legajo.sueldoBasico.toString()),
+            remuneracionesVariablesUltimos12Meses: remuneracionesVariables,
+          },
+          salarioBaseConvenio: money(legajo.categoria.salarioBaseConvenio.toString()),
+          fallecimiento: evento.motivo === "FALLECIMIENTO" ? { beneficiarios } : undefined,
+        });
+    if (resultado) warnings.push(...resultado.warnings);
+
+    let saldoFondoCese = money(0);
+    if (esUocra) {
+      const fondoCuenta = await db.fondoCeseCuenta.findUnique({ where: { legajoId: legajo.id } });
+      saldoFondoCese = fondoCuenta ? money(fondoCuenta.saldoActual.toString()) : money(0);
+      warnings.push(
+        "UOCRA (Ley 22.250): la indemnización de este legajo es el saldo del Fondo de Cese " +
+          "Laboral (depósitos mensuales del empleador en su cuenta individual), no el régimen " +
+          "LCT estándar. Se retira automáticamente al confirmar la desvinculación.",
       );
+      if (saldoFondoCese.lte(0)) {
+        warnings.push(
+          "El Fondo de Cese Laboral de este legajo todavía no tiene saldo — revisá que los " +
+            "períodos mensuales estén confirmados.",
+        );
+      }
     }
 
     // --- Liquidación final (rubros además de la indemnización) ---
@@ -206,11 +219,13 @@ export async function calcularYGuardarIndemnizacion(
       remuneracionMensual,
       mejorRemuneracionSemestre: mejorRemSemestre,
       diasVacacionesGozadas: vacPeriodo?.diasGozados ?? 0,
-      montoPreaviso: resultado.preaviso.montoPreaviso,
+      montoPreaviso: resultado ? resultado.preaviso.montoPreaviso : undefined,
     });
-    const totalGeneral = resultado.montoTotal.plus(liqFinal.subtotalFinal);
+    const montoTotal = esUocra ? saldoFondoCese : resultado!.montoTotal;
+    const totalGeneral = montoTotal.plus(liqFinal.subtotalFinal);
 
     const resultadoJson: Prisma.InputJsonValue = {
+      tipo: esUocra ? "FONDO_CESE_UOCRA" : "LCT_ESTANDAR",
       liquidacionFinal: {
         diasTrabajadosMes: {
           dias: liqFinal.diasTrabajadosMes.dias,
@@ -228,22 +243,26 @@ export async function calcularYGuardarIndemnizacion(
         warnings: liqFinal.warnings,
       },
       totalGeneral: totalGeneral.toString(),
-      art245: {
-        baseArt245: resultado.art245.baseArt245.toString(),
-        antiguedadAnios: resultado.art245.antiguedadAnios,
-        indemnizacionSinTope: resultado.art245.indemnizacionSinTope.toString(),
-        topeConvenio: resultado.art245.topeConvenio.toString(),
-        indemnizacionConTope: resultado.art245.indemnizacionConTope.toString(),
-        pisoGarantia67: resultado.art245.pisoGarantia67.toString(),
-        pisoUnMes: resultado.art245.pisoUnMes.toString(),
-        indemnizacionFinal: resultado.art245.indemnizacionFinal.toString(),
-      },
-      preaviso: {
-        mesesPreaviso: resultado.preaviso.mesesPreaviso,
-        montoPreaviso: resultado.preaviso.montoPreaviso.toString(),
-      },
-      montoIndemnizacionAntiguedad: resultado.montoIndemnizacionAntiguedad.toString(),
-      warnings: resultado.warnings,
+      ...(esUocra
+        ? { fondoCeseLaboral: { saldoActual: saldoFondoCese.toString() } }
+        : {
+            art245: {
+              baseArt245: resultado!.art245.baseArt245.toString(),
+              antiguedadAnios: resultado!.art245.antiguedadAnios,
+              indemnizacionSinTope: resultado!.art245.indemnizacionSinTope.toString(),
+              topeConvenio: resultado!.art245.topeConvenio.toString(),
+              indemnizacionConTope: resultado!.art245.indemnizacionConTope.toString(),
+              pisoGarantia67: resultado!.art245.pisoGarantia67.toString(),
+              pisoUnMes: resultado!.art245.pisoUnMes.toString(),
+              indemnizacionFinal: resultado!.art245.indemnizacionFinal.toString(),
+            },
+            preaviso: {
+              mesesPreaviso: resultado!.preaviso.mesesPreaviso,
+              montoPreaviso: resultado!.preaviso.montoPreaviso.toString(),
+            },
+            montoIndemnizacionAntiguedad: resultado!.montoIndemnizacionAntiguedad.toString(),
+          }),
+      warnings,
       enPeriodoDePrueba,
     };
 
@@ -252,13 +271,13 @@ export async function calcularYGuardarIndemnizacion(
         where: { id: eventoId },
         data: {
           resultadoJson,
-          montoTotal: resultado.montoTotal.toString(),
+          montoTotal: montoTotal.toString(),
           calculadoPorUsuarioId: session.user.id,
         },
       });
 
       await tx.beneficiarioFallecimiento.deleteMany({ where: { eventoDesvinculacionId: eventoId } });
-      if (resultado.beneficiariosFallecimiento) {
+      if (resultado?.beneficiariosFallecimiento) {
         for (const b of resultado.beneficiariosFallecimiento) {
           await tx.beneficiarioFallecimiento.create({
             data: {
@@ -277,11 +296,11 @@ export async function calcularYGuardarIndemnizacion(
       accion: "INDEMNIZACION_CALCULADA",
       entidad: "EventoDesvinculacion",
       entidadId: eventoId,
-      detalle: { montoTotal: resultado.montoTotal.toString() },
+      detalle: { montoTotal: montoTotal.toString() },
     });
 
     revalidatePath(`/empresas/${evento.empresaId}/desvinculaciones/${eventoId}`);
-    return { ok: true, data: { montoTotal: resultado.montoTotal.toString(), warnings: resultado.warnings } };
+    return { ok: true, data: { montoTotal: montoTotal.toString(), warnings } };
   } catch (err) {
     return { ok: false, error: err instanceof AuthzError ? err.message : "Error al calcular la indemnización." };
   }
@@ -291,9 +310,10 @@ export async function confirmarDesvinculacion(eventoId: string): Promise<ActionR
   try {
     const evento = await db.eventoDesvinculacion.findUniqueOrThrow({
       where: { id: eventoId },
-      include: { legajo: true },
+      include: { legajo: { include: { categoria: true } } },
     });
     const session = await requireEscritura(evento.empresaId);
+    const esUocra = evento.legajo.categoria.convenio === "UOCRA_22_250";
 
     await db.$transaction(async (tx) => {
       await tx.eventoDesvinculacion.update({ where: { id: eventoId }, data: { estado: "CONFIRMADO" } });
@@ -301,6 +321,29 @@ export async function confirmarDesvinculacion(eventoId: string): Promise<ActionR
         where: { id: evento.legajoId },
         data: { situacion: "DESVINCULADO", fechaEgreso: evento.fechaEgreso },
       });
+
+      if (esUocra) {
+        // UOCRA: el "monto total" del evento ES el saldo del Fondo de Cese Laboral (no una
+        // indemnización LCT que el FAL pueda cubrir parcialmente — el FAL Título II mutualiza
+        // exposición art. 245, que este convenio nunca tiene). Se retira la cuenta completa.
+        const fondoCuenta = await tx.fondoCeseCuenta.findUnique({ where: { legajoId: evento.legajoId } });
+        if (fondoCuenta && money(fondoCuenta.saldoActual.toString()).gt(0)) {
+          const saldo = money(fondoCuenta.saldoActual.toString());
+          await tx.fondoCeseMovimiento.create({
+            data: {
+              fondoCeseCuentaId: fondoCuenta.id,
+              tipo: "RETIRO_CESE",
+              eventoDesvinculacionId: eventoId,
+              monto: saldo.negated().toString(),
+              saldoResultante: "0",
+              fecha: evento.fechaEgreso,
+              descripcion: `Retiro Fondo de Cese Laboral — ${evento.legajo.apellido}, ${evento.legajo.nombre}`,
+            },
+          });
+          await tx.fondoCeseCuenta.update({ where: { id: fondoCuenta.id }, data: { saldoActual: 0 } });
+        }
+        return;
+      }
 
       // Evalúa cobertura del Fondo de Asistencia Laboral (Título II) para esta indemnización.
       // El empleador sigue siendo responsable por cualquier monto que el fondo no cubra.
@@ -340,6 +383,7 @@ export async function confirmarDesvinculacion(eventoId: string): Promise<ActionR
 
     revalidatePath(`/empresas/${evento.empresaId}/desvinculaciones/${eventoId}`);
     revalidatePath(`/empresas/${evento.empresaId}/legajos`);
+    revalidatePath(`/empresas/${evento.empresaId}/legajos/${evento.legajoId}`);
     revalidatePath(`/empresas/${evento.empresaId}/fal`);
     return { ok: true, data: undefined };
   } catch (err) {

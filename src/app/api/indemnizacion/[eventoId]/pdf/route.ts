@@ -54,6 +54,12 @@ export async function GET(
   }
 
   const resultado = evento.resultadoJson as unknown as ResultadoJson;
+  if ((resultado as { tipo?: string })?.tipo === "FONDO_CESE_UOCRA") {
+    return NextResponse.json(
+      { error: "UOCRA (Ley 22.250) no usa este PDF — el saldo del Fondo de Cese Laboral está en el detalle del evento." },
+      { status: 400 },
+    );
+  }
   if (!resultado?.art245) {
     return NextResponse.json({ error: "La indemnización todavía no fue calculada." }, { status: 400 });
   }

@@ -188,6 +188,7 @@ model Legajo {
   gananciasAcumulados   GananciasAcumulado[]
   licencias             Licencia[]
   adelantos             AdelantoSueldo[]
+  fondoCeseCuenta       FondoCeseCuenta?
 
   @@unique([empresaId, numeroLegajo])
   @@index([empresaId])
@@ -383,8 +384,9 @@ model PeriodoLiquidacion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  liquidaciones  LiquidacionMensual[]
-  falMovimientos FalMovimiento[]
+  liquidaciones        LiquidacionMensual[]
+  falMovimientos       FalMovimiento[]
+  fondoCeseMovimientos FondoCeseMovimiento[]
 
   @@unique([empresaId, anio, mes])
   @@index([empresaId])
@@ -567,6 +569,9 @@ enum ClaveTasa {
   PRESENTISMO_PORCENTAJE_UOCRA
   CUOTA_SINDICAL_UOCRA
   APORTE_SOLIDARIO_UOCRA
+  // Fondo de Cese Laboral (Ley 22.250, UOCRA) — reemplaza indemnización art. 245 + preaviso
+  FONDO_CESE_TASA_PRIMER_ANIO // % depositado mensualmente durante el primer año de antigüedad
+  FONDO_CESE_TASA_DESDE_SEGUNDO_ANIO // % depositado desde el segundo año en adelante
 }
 
 model TasaLaboral {
@@ -624,8 +629,9 @@ model EventoDesvinculacion {
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
-  beneficiarios BeneficiarioFallecimiento[]
-  falMovimiento FalMovimiento?
+  beneficiarios        BeneficiarioFallecimiento[]
+  falMovimiento        FalMovimiento?
+  fondoCeseMovimiento  FondoCeseMovimiento?
 
   @@index([legajoId])
   @@index([empresaId])
@@ -682,6 +688,48 @@ model FalMovimiento {
   createdAt              DateTime              @default(now())
 
   @@index([falCuentaId])
+}
+
+// ---------- Fondo de Cese Laboral (Ley 22.250, UOCRA) ----------
+// Cuenta POR TRABAJADOR (no por empresa como el FAL — es otra ley, otro mecanismo): el
+// empleador deposita mensualmente en una cuenta individual del trabajador en el IERIC, 12% de
+// la remuneración el primer año de antigüedad y 8% desde el segundo. Al cese el trabajador
+// retira el saldo en vez de cobrar indemnización art. 245 / preaviso LCT — la Ley 22.250 los
+// reemplaza por completo para este convenio.
+
+model FondoCeseCuenta {
+  id          String   @id @default(cuid())
+  legajoId    String   @unique
+  legajo      Legajo   @relation(fields: [legajoId], references: [id], onDelete: Cascade)
+  fechaAlta   DateTime // fecha de ingreso del legajo
+  saldoActual Decimal  @default(0) @db.Decimal(14, 2) // cache denormalizado, recalculable desde movimientos
+  createdAt   DateTime @default(now())
+
+  movimientos FondoCeseMovimiento[]
+}
+
+enum TipoMovimientoFondoCese {
+  DEPOSITO_MENSUAL
+  RETIRO_CESE
+  AJUSTE
+}
+
+model FondoCeseMovimiento {
+  id                     String                   @id @default(cuid())
+  fondoCeseCuentaId      String
+  fondoCeseCuenta        FondoCeseCuenta          @relation(fields: [fondoCeseCuentaId], references: [id], onDelete: Cascade)
+  tipo                   TipoMovimientoFondoCese
+  periodoId              String?
+  periodo                PeriodoLiquidacion?      @relation(fields: [periodoId], references: [id])
+  eventoDesvinculacionId String?                  @unique
+  evento                 EventoDesvinculacion?    @relation(fields: [eventoDesvinculacionId], references: [id])
+  monto                  Decimal                  @db.Decimal(14, 2) // positivo=crédito, negativo=débito
+  saldoResultante        Decimal                  @db.Decimal(14, 2)
+  fecha                  DateTime
+  descripcion            String?
+  createdAt              DateTime                 @default(now())
+
+  @@index([fondoCeseCuentaId])
 }
 
 // ---------- Auditoría ----------
