@@ -22,9 +22,17 @@ import {
 import { toast } from "sonner";
 import type { ActionResult } from "@/actions/empresas";
 
-export function TasaForm() {
+export function TasaForm({
+  defaultClave,
+  onSaved,
+}: {
+  /** Preselecciona el concepto (usado al abrir el form desde Configuración → Fórmulas). */
+  defaultClave?: (typeof claveTasaValues)[number];
+  /** Se llama al guardar con éxito, además del refresh — para cerrar el diálogo que lo contiene. */
+  onSaved?: () => void;
+}) {
   const router = useRouter();
-  const [clave, setClave] = useState<(typeof claveTasaValues)[number] | "">("");
+  const [clave, setClave] = useState<(typeof claveTasaValues)[number] | "">(defaultClave ?? "");
   const [state, formAction, pending] = useActionState<ActionResult<{ id: string }> | null, FormData>(
     async (prevState, formData) => actualizarTasa(prevState, formData),
     null,
@@ -35,17 +43,18 @@ export function TasaForm() {
     if (state.ok) {
       toast.success("Tasa actualizada.");
       router.refresh();
+      onSaved?.();
     } else {
       toast.error(state.error);
     }
-  }, [state, router]);
+  }, [state, router, onSaved]);
 
   const esMontoFijo = clave !== "" && CLAVES_MONTO_FIJO.has(clave);
   const esNumeroLibre = clave !== "" && CLAVES_NUMERO_LIBRE.has(clave);
   const esValorLibre = esMontoFijo || esNumeroLibre;
 
   return (
-    <form action={formAction} className="grid max-w-2xl grid-cols-3 gap-4 items-end">
+    <form action={formAction} className="grid max-w-2xl grid-cols-1 gap-4 items-end sm:grid-cols-3">
       <div className="space-y-2">
         <Label htmlFor="clave">Concepto</Label>
         <Select name="clave" value={clave} onValueChange={(v) => setClave(v as typeof clave)}>

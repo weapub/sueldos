@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const ITEMS = [
   { href: "/configuracion/usuarios", label: "Usuarios" },
   { href: "/configuracion/tasas", label: "Tasas laborales" },
+  { href: "/configuracion/formulas", label: "Fórmulas" },
   { href: "/configuracion/asignaciones", label: "Asignaciones familiares" },
   { href: "/configuracion/ganancias", label: "Ganancias" },
 ];

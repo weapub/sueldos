@@ -13,6 +13,7 @@ export const claveTasaValues = [
   "CONTRIB_FNE",
   "DEDUCCION_FAECYS",
   "DEDUCCION_IPS_FSA",
+  "ANTIGUEDAD_PORCENTAJE_ANIO",
   "FAL_GRANDE",
   "FAL_PYME",
   "TOPE_DEDUCCION_GENERAL",
@@ -40,6 +41,7 @@ export const CLAVE_TASA_LABEL: Record<(typeof claveTasaValues)[number], string> 
   CONTRIB_FNE: "Contribución Fondo Nacional de Empleo",
   DEDUCCION_FAECYS: "Deducción FAECYS",
   DEDUCCION_IPS_FSA: "Deducción IPS FSA (provincial)",
+  ANTIGUEDAD_PORCENTAJE_ANIO: "Antigüedad — % por año (CCT 130/75: 1%)",
   FAL_GRANDE: "FAL — Empresa grande",
   FAL_PYME: "FAL — PyME",
   TOPE_DEDUCCION_GENERAL: "Tope deducciones generales (art. 133)",
@@ -82,3 +84,14 @@ export const tasaSchema = z
   );
 
 export type TasaInput = z.infer<typeof tasaSchema>;
+
+/** Formatea el valor vigente de una tasa según su tipo (%, monto fijo o número libre). */
+export function formatValorTasa(
+  clave: (typeof claveTasaValues)[number],
+  valor: number | string,
+): string {
+  const n = Number(valor);
+  if (CLAVES_MONTO_FIJO.has(clave)) return `$${n.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
+  if (CLAVES_NUMERO_LIBRE.has(clave)) return n.toLocaleString("es-AR");
+  return `${(n * 100).toFixed(3)}%`;
+}
