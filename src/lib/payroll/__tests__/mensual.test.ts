@@ -26,6 +26,9 @@ const tasas: TasasVigentes = {
   aporteSolidarioFijo: money(0),
   riflReduccionContribuciones: money(0),
   divisorHorasMes: money(200),
+  antiguedadMontoFijoAnioUecara: money(0),
+  presentismoPorcentajeUecara: money(0),
+  cuotaSindicalUecara: money(0),
 };
 
 describe("calcularLiquidacionMensual", () => {
@@ -396,6 +399,9 @@ describe("caso de regresión GONZALEZ IVAN (GONZALEZ.xlsm, legajo 3, período JU
     aporteSolidarioFijo: money(100),
     riflReduccionContribuciones: money(0),
     divisorHorasMes: money(200),
+    antiguedadMontoFijoAnioUecara: money(0),
+    presentismoPorcentajeUecara: money(0),
+    cuotaSindicalUecara: money(0),
   };
 
   const mejorRemuneracionSemestre = money("263517.79"); // básico + antigüedad + presentismo del propio período (sin historial previo)
@@ -479,5 +485,50 @@ describe("caso de regresión GONZALEZ IVAN (GONZALEZ.xlsm, legajo 3, período JU
 
   it("neto = 528.408,73", () => {
     expect(resultado.neto.toFixed(2)).toBe("528408.73");
+  });
+});
+
+describe("legajo UECARA CCT 660/13: antigüedad monto fijo, presentismo % flat, cuota propia", () => {
+  const tasasUecara: TasasVigentes = {
+    ...tasas,
+    antiguedadMontoFijoAnioUecara: money("9776"),
+    presentismoPorcentajeUecara: money(0.1),
+    cuotaSindicalUecara: money(0.02),
+  };
+
+  const resultado = calcularLiquidacionMensual({
+    legajo: {
+      sueldoBasico: money(300000),
+      horasSemanalesFullTime: money(48),
+      modalidadRemuneracion: "MENSUAL",
+      antiguedadAnios: 3,
+      convenio: "UECARA_660_13",
+    },
+    anio: 2026,
+    mes: 7,
+    diasTrabajados: 31,
+    diasEnMes: 31,
+    esMesSAC: false,
+    conceptos: [],
+    tasas: tasasUecara,
+  });
+
+  it("antigüedad = 3 años × $9.776 = $29.328, no básico × 3%", () => {
+    const antiguedad = resultado.conceptos.find((c) => c.codigo === "10002");
+    expect(antiguedad?.monto.toFixed(2)).toBe("29328.00");
+  });
+
+  it("presentismo = 10% flat del básico ($30.000), no (básico+antigüedad)/12", () => {
+    const presentismo = resultado.conceptos.find((c) => c.codigo === "10003");
+    expect(presentismo?.monto.toFixed(2)).toBe("30000.00");
+  });
+
+  it("cuota sindical UECARA (30013) = 2% del total remunerativo, no SINDICATO/FAECYS de Comercio", () => {
+    const cuotaUecara = resultado.conceptos.find((c) => c.codigo === "30013");
+    expect(cuotaUecara).toBeDefined();
+    expect(cuotaUecara?.montoAjustado.toFixed(2)).toBe(resultado.totalRemunerativo.times("0.02").toFixed(2));
+
+    expect(resultado.conceptos.find((c) => c.codigo === "30004")).toBeUndefined(); // SINDICATO
+    expect(resultado.conceptos.find((c) => c.codigo === "30005")).toBeUndefined(); // FAECYS
   });
 });

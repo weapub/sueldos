@@ -224,6 +224,7 @@ async function calcularYGuardarLiquidacionLegajo(params: {
       remuneracionNoRemunerativa: tieneNoRemunerativo ? remuneracionNoRemunerativa : undefined,
       afiliadoSindical: legajo.afiliadoSindical,
       aplicaRIFL,
+      convenio: legajo.categoria.convenio,
     },
     anio: params.anio,
     mes: params.mes,

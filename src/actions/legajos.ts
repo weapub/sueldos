@@ -251,6 +251,7 @@ export async function crearCategoria(
         empresaId,
         nombre: v.nombre,
         convenioNombre: v.convenioNombre || null,
+        convenio: v.convenio,
         salarioBaseConvenio: v.salarioBaseConvenio,
         vigenciaDesde: new Date(v.vigenciaDesde),
       },

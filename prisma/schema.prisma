@@ -68,12 +68,22 @@ model Empresa {
   falCuenta             FalCuenta?
 }
 
+/// Qué ruleset de cálculo aplica el motor (antigüedad/presentismo/deducciones sindicales) —
+/// a diferencia de `convenioNombre`, esto SÍ lo lee el motor (`resolverReglasConvenio` en
+/// `src/lib/payroll/convenios.ts`). UOCRA (Ley 22.250) se agrega en una fase posterior, junto
+/// con el Fondo de Cese Laboral que lo acompaña — no está en este enum todavía.
+enum Convenio {
+  COMERCIO_130_75
+  UECARA_660_13
+}
+
 model CategoriaConvenio {
   id                         String    @id @default(cuid())
   empresaId                  String
   empresa                    Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   nombre                     String // ej. "Administrativo A"
   convenioNombre             String? // etiqueta libre, ej. "CCT 130/75" — no se usa programáticamente
+  convenio                   Convenio  @default(COMERCIO_130_75) // este sí lo usa el motor
   salarioBaseConvenio        Decimal   @db.Decimal(14, 2) // REM de escala; también es la base del tope 3x del art. 245
   remuneracionNoRemunerativa Decimal   @default(0) @db.Decimal(14, 2) // NO REM de escala vigente en esta versión
   vigenciaDesde              DateTime
@@ -548,6 +558,10 @@ enum ClaveTasa {
   DETRACCION_ART22_CON_SAC
   DETRACCION_ART22_SIN_SAC
   DETRACCION_ART23_CONTRIBUCIONES
+  // UECARA CCT 660/13 — reglas propias (antigüedad es monto fijo por año, no % del básico)
+  ANTIGUEDAD_MONTO_FIJO_ANIO_UECARA // monto fijo ($/año), no fracción
+  PRESENTISMO_PORCENTAJE_UECARA
+  CUOTA_SINDICAL_UECARA
 }
 
 model TasaLaboral {

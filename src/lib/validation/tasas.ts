@@ -26,6 +26,9 @@ export const claveTasaValues = [
   "DETRACCION_ART23_CONTRIBUCIONES",
   "RIFL_REDUCCION_CONTRIBUCIONES",
   "DIVISOR_HORAS_MES",
+  "ANTIGUEDAD_MONTO_FIJO_ANIO_UECARA",
+  "PRESENTISMO_PORCENTAJE_UECARA",
+  "CUOTA_SINDICAL_UECARA",
 ] as const;
 
 export const CLAVE_TASA_LABEL: Record<(typeof claveTasaValues)[number], string> = {
@@ -54,6 +57,9 @@ export const CLAVE_TASA_LABEL: Record<(typeof claveTasaValues)[number], string> 
   DETRACCION_ART23_CONTRIBUCIONES: "Detracción art. 23 Ley 27.541 — contribuciones (monto fijo $)",
   RIFL_REDUCCION_CONTRIBUCIONES: "RIFL — % de reducción de contribuciones patronales (sin reglamentar, default 0)",
   DIVISOR_HORAS_MES: "Divisor para valor hora extra (ej. 200)",
+  ANTIGUEDAD_MONTO_FIJO_ANIO_UECARA: "UECARA — Antigüedad, monto fijo por año ($)",
+  PRESENTISMO_PORCENTAJE_UECARA: "UECARA — Presentismo (% flat del básico)",
+  CUOTA_SINDICAL_UECARA: "UECARA — Cuota sindical (%)",
 };
 
 /** Claves cuyo `valor` es un monto fijo en pesos, no una fracción/porcentaje. */
@@ -64,6 +70,7 @@ export const CLAVES_MONTO_FIJO = new Set<(typeof claveTasaValues)[number]>([
   "DETRACCION_ART22_CON_SAC",
   "DETRACCION_ART22_SIN_SAC",
   "DETRACCION_ART23_CONTRIBUCIONES",
+  "ANTIGUEDAD_MONTO_FIJO_ANIO_UECARA",
 ]);
 
 /** Claves cuyo `valor` es un número libre (ni fracción ni pesos). */

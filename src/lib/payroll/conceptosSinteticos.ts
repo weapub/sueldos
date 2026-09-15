@@ -83,6 +83,8 @@ export const CONCEPTOS_SINTETICOS: ConceptoSinteticoDef[] = [
     formula: "Retención acumulada de Impuesto a las Ganancias (RG 4003) — parámetros en Configuración → Ganancias, no en Tasas laborales." },
   { codigo: "ADELANTO_SUELDO", codigoArca: "840000", nombre: "Adelanto de sueldo", tipo: "DEDUCCION", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 99,
     formula: "Suma de los adelantos de sueldo del legajo pendientes de descontar — se cargan desde el detalle del legajo." },
+  { codigo: "30013", codigoArca: "810004", nombre: "CUOTA SINDICAL UECARA", tipo: "DEDUCCION", subtipo: "SINDICAL", rubroRecibo: "SINDICAL", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 91,
+    formula: "Total remunerativo × {CUOTA_SINDICAL_UECARA}." },
 
   // Contribuciones patronales (Sección B del recibo Anexo III)
   { codigo: "CP_JUBILACION", nombre: "Contribución jubilación (patronal)", tipo: "CONTRIBUCION_PATRONAL", rubroRecibo: "SEGURIDAD_SOCIAL", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 100,

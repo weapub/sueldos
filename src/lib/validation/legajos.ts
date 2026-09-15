@@ -10,9 +10,17 @@ export const tipoContratoValues = [
 
 export const modalidadRemuneracionValues = ["MENSUAL", "JORNAL", "HORA"] as const;
 
+export const convenioValues = ["COMERCIO_130_75", "UECARA_660_13"] as const;
+
+export const CONVENIO_LABEL: Record<(typeof convenioValues)[number], string> = {
+  COMERCIO_130_75: "Comercio (CCT 130/75)",
+  UECARA_660_13: "UECARA (CCT 660/13)",
+};
+
 export const categoriaConvenioSchema = z.object({
   nombre: z.string().trim().min(2, "Ingresá el nombre de la categoría."),
   convenioNombre: z.string().trim().optional().or(z.literal("")),
+  convenio: z.enum(convenioValues).default("COMERCIO_130_75"),
   salarioBaseConvenio: z.coerce.number().positive("El salario base debe ser mayor a 0."),
   vigenciaDesde: z.string().min(1, "Ingresá la fecha de vigencia."),
 });

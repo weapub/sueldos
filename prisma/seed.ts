@@ -40,6 +40,11 @@ async function main() {
     { clave: "DIVISOR_HORAS_MES", valor: 200 },
     // RIFL (Título XX Ley 27.802): 0 por defecto — no reglamentado todavía, no inventar el %.
     { clave: "RIFL_REDUCCION_CONTRIBUCIONES", valor: 0 },
+    // UECARA CCT 660/13: 0 por defecto — el contador carga la escala oficial cuando la tenga
+    // (estructura confirmada por investigación externa, sin montos oficiales, ver plan).
+    { clave: "ANTIGUEDAD_MONTO_FIJO_ANIO_UECARA", valor: 0 },
+    { clave: "PRESENTISMO_PORCENTAJE_UECARA", valor: 0 },
+    { clave: "CUOTA_SINDICAL_UECARA", valor: 0 },
     // FAL y topes de deducción (Ley 27.802)
     { clave: "FAL_GRANDE", valor: 0.01 },
     { clave: "FAL_PYME", valor: 0.025 },

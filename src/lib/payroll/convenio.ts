@@ -27,3 +27,19 @@ export function calcularPresentismo(
 ): Money {
   return round2(base.plus(antiguedad).div(divisor));
 }
+
+/**
+ * Antigüedad como monto fijo por año (UECARA CCT 660/13), a diferencia de Comercio que la
+ * calcula como % del básico. `montoPorAnio` es el valor de convenio vigente (parametrizable).
+ */
+export function calcularAntiguedadImporteFijo(antiguedadAnios: number, montoPorAnio: Money): Money {
+  return round2(montoPorAnio.times(antiguedadAnios));
+}
+
+/**
+ * Presentismo como % flat del básico (UECARA: 10%), sin sumar antigüedad ni dividir por 12
+ * como en la fórmula de Comercio.
+ */
+export function calcularPresentismoFlat(base: Money, tasa: Money): Money {
+  return round2(base.times(tasa));
+}

@@ -15,8 +15,15 @@ import {
 import { toast } from "sonner";
 import type { ActionResult } from "@/actions/empresas";
 import { CATALOGO_CCT_130_75 } from "@/lib/catalogoConvenios";
+import { convenioValues, CONVENIO_LABEL } from "@/lib/validation/legajos";
 
-const CAMPOS_VACIOS = { nombre: "", convenioNombre: "", salarioBaseConvenio: "", vigenciaDesde: "" };
+const CAMPOS_VACIOS = {
+  nombre: "",
+  convenioNombre: "",
+  convenio: "COMERCIO_130_75" as (typeof convenioValues)[number],
+  salarioBaseConvenio: "",
+  vigenciaDesde: "",
+};
 
 export function CategoriaForm({
   action,
@@ -50,6 +57,7 @@ export function CategoriaForm({
     setCampos({
       nombre: preset.nombre,
       convenioNombre: preset.convenioNombre,
+      convenio: "COMERCIO_130_75",
       salarioBaseConvenio: String(preset.salarioBaseConvenio),
       vigenciaDesde: preset.vigenciaDesde,
     });
@@ -89,7 +97,7 @@ export function CategoriaForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="convenioNombre">Convenio (opcional)</Label>
+          <Label htmlFor="convenioNombre">Convenio (etiqueta, opcional)</Label>
           <Input
             id="convenioNombre"
             name="convenioNombre"
@@ -97,6 +105,25 @@ export function CategoriaForm({
             value={campos.convenioNombre}
             onChange={(e) => setCampos((c) => ({ ...c, convenioNombre: e.target.value }))}
           />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="convenio">Reglas de cálculo</Label>
+          <Select
+            name="convenio"
+            value={campos.convenio}
+            onValueChange={(v) => setCampos((c) => ({ ...c, convenio: v as (typeof convenioValues)[number] }))}
+          >
+            <SelectTrigger id="convenio" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {convenioValues.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {CONVENIO_LABEL[v]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="salarioBaseConvenio">Salario base (tope art. 245)</Label>

@@ -55,6 +55,7 @@ export async function resolverBrutoDesdeNeto(
           antiguedadAnios: input.antiguedadAnios,
           remuneracionNoRemunerativa: noRem.gt(0) ? noRem : undefined,
           afiliadoSindical: input.afiliadoSindical,
+          convenio: categoria.convenio,
         },
         anio,
         mes,

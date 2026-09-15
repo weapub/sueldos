@@ -7,9 +7,11 @@ import { actualizarEmpresa } from "@/actions/empresas";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { CategoriaForm } from "./categoria-form";
 import { CargarEscalaCCT } from "./cargar-escala-cct";
 import { formatFechaAR } from "@/lib/fecha";
+import { CONVENIO_LABEL } from "@/lib/validation/legajos";
 import {
   Table,
   TableBody,
@@ -99,7 +101,14 @@ export default async function EmpresaDetailPage({
                     {empresa.categorias.map((cat) => (
                       <TableRow key={cat.id}>
                         <TableCell className="font-medium">{cat.nombre}</TableCell>
-                        <TableCell>{cat.convenioNombre ?? "—"}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-0.5">
+                            <span>{cat.convenioNombre ?? "—"}</span>
+                            <Badge variant="outline" className="w-fit text-[10px]">
+                              {CONVENIO_LABEL[cat.convenio]}
+                            </Badge>
+                          </div>
+                        </TableCell>
                         <TableCell>
                           $
                           {Number(cat.salarioBaseConvenio).toLocaleString("es-AR", {

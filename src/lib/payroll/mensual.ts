@@ -1,8 +1,12 @@
 import { type Money, ZERO, money, round2, sum } from "./money";
 import { esPartTime } from "./partTime";
 import { calcularSAC } from "./sac";
-import { calcularAntiguedadImporte, calcularPresentismo } from "./convenio";
 import { aplicarTopeDeducciones } from "./deducciones";
+import {
+  calcularMontoAntiguedadSegunReglas,
+  calcularMontoPresentismoSegunReglas,
+  resolverReglasConvenio,
+} from "./convenios";
 import type { ConceptoInput, ConceptoOutput, LiquidacionMensualInput, LiquidacionMensualResult } from "./types";
 
 const BASICO_CONCEPTO_ID = "BASICO";
@@ -47,6 +51,14 @@ function prorratear(
 export function calcularLiquidacionMensual(input: LiquidacionMensualInput): LiquidacionMensualResult {
   const warnings: string[] = [];
   const legajo = input.legajo;
+  const convenioLegajo = legajo.convenio ?? "COMERCIO_130_75";
+  const reglas = resolverReglasConvenio(convenioLegajo, input.tasas);
+  // Las claves CONTRIB_SINDICAL/DEDUCCION_FAECYS/DEDUCCION_IPS_FSA/APORTE_SOLIDARIO_OSECAC_FIJO
+  // son de Comercio: un legajo de otro convenio (UECARA) NO debe pagar SINDICATO/FAECYS además
+  // de su propia cuota sindical (`reglas.deduccionesSindicales`, bloque 6 bis) — sin este gate,
+  // si la tasa global de CONTRIB_SINDICAL está cargada (caso normal en una empresa con
+  // categorías Comercio), un legajo UECARA de la misma empresa pagaría las dos deducciones.
+  const usaDeduccionesConvenioComercio = convenioLegajo !== "UECARA_660_13";
 
   // 1. Básico, prorrateado por part-time (art. 92 ter) y por días trabajados.
   const montoBasico = prorratear(
@@ -74,35 +86,39 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
     consentimientoFirmado: false,
   };
 
-  // 2. Antigüedad y presentismo (fórmula CCT: antigüedad = básico × años × tasa;
-  // presentismo = (básico + antigüedad) / 12). Solo se calculan si el llamador informó
-  // los años de antigüedad del legajo — si no, se omiten (comportamiento previo intacto).
+  // 2. Antigüedad y presentismo — la fórmula depende del convenio (`reglas`, resuelto arriba):
+  // Comercio es básico×años×tasa y (básico+antigüedad)/12; UECARA es monto fijo por año y un %
+  // flat del básico (ver `resolverReglasConvenio`). Solo se calculan si el llamador informó los
+  // años de antigüedad del legajo — si no, se omiten (comportamiento previo intacto). Un
+  // convenio sin adicional por antigüedad (`forma: "NINGUNA"`, futuro UOCRA) tampoco emite la
+  // línea aunque el llamador sí informe antigüedadAnios.
   const aplicaReglasConvenio = legajo.antiguedadAnios !== undefined;
-  const conceptoAntiguedad: ConceptoInput | null = aplicaReglasConvenio
-    ? {
-        id: ANTIGUEDAD_CODIGO,
-        codigo: ANTIGUEDAD_CODIGO,
-        nombre: "Antigüedad",
-        tipo: "REMUNERATIVO",
-        monto: calcularAntiguedadImporte(montoBasico, legajo.antiguedadAnios!, input.tasas.antiguedadPorcentajeAnio),
-        afectaAportes: true,
-        afectaContribuciones: true,
-        afectaSAC: true,
-        esVariable: false,
-        requiereConsentimiento: false,
-        consentimientoFirmado: false,
-      }
-    : null;
+  const conceptoAntiguedad: ConceptoInput | null =
+    aplicaReglasConvenio && reglas.antiguedad.forma !== "NINGUNA"
+      ? {
+          id: ANTIGUEDAD_CODIGO,
+          codigo: ANTIGUEDAD_CODIGO,
+          nombre: "Antigüedad",
+          tipo: "REMUNERATIVO",
+          monto: calcularMontoAntiguedadSegunReglas(reglas.antiguedad, montoBasico, legajo.antiguedadAnios!),
+          afectaAportes: true,
+          afectaContribuciones: true,
+          afectaSAC: true,
+          esVariable: false,
+          requiereConsentimiento: false,
+          consentimientoFirmado: false,
+        }
+      : null;
 
   const presentismoCorresponde = input.presentismoCorresponde ?? true;
   const conceptoPresentismo: ConceptoInput | null =
-    aplicaReglasConvenio && presentismoCorresponde
+    aplicaReglasConvenio && presentismoCorresponde && reglas.presentismo.forma !== "NINGUNO"
       ? {
           id: PRESENTISMO_CODIGO,
           codigo: PRESENTISMO_CODIGO,
           nombre: "Presentismo",
           tipo: "REMUNERATIVO",
-          monto: calcularPresentismo(montoBasico, conceptoAntiguedad!.monto),
+          monto: calcularMontoPresentismoSegunReglas(reglas.presentismo, montoBasico, conceptoAntiguedad?.monto ?? ZERO),
           afectaAportes: true,
           afectaContribuciones: true,
           afectaSAC: true,
@@ -202,13 +218,13 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
     : null;
 
   const conceptoAntiguedadNR: ConceptoInput | null =
-    tieneNoRemunerativo && aplicaReglasConvenio
+    tieneNoRemunerativo && aplicaReglasConvenio && reglas.antiguedad.forma !== "NINGUNA"
       ? {
           id: ANTIGUEDAD_NR_CODIGO,
           codigo: ANTIGUEDAD_NR_CODIGO,
           nombre: "Antigüedad no remunerativo",
           tipo: "NO_REMUNERATIVO",
-          monto: calcularAntiguedadImporte(conceptoAdicionalNR!.monto, legajo.antiguedadAnios!, input.tasas.antiguedadPorcentajeAnio),
+          monto: calcularMontoAntiguedadSegunReglas(reglas.antiguedad, conceptoAdicionalNR!.monto, legajo.antiguedadAnios!),
           afectaAportes: false,
           afectaContribuciones: true,
           afectaSAC: false,
@@ -219,13 +235,13 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
       : null;
 
   const conceptoPresentismoNR: ConceptoInput | null =
-    tieneNoRemunerativo && aplicaReglasConvenio && presentismoCorresponde
+    tieneNoRemunerativo && aplicaReglasConvenio && presentismoCorresponde && reglas.presentismo.forma !== "NINGUNO"
       ? {
           id: PRESENTISMO_NR_CODIGO,
           codigo: PRESENTISMO_NR_CODIGO,
           nombre: "Presentismo no remunerativo",
           tipo: "NO_REMUNERATIVO",
-          monto: calcularPresentismo(conceptoAdicionalNR!.monto, conceptoAntiguedadNR?.monto ?? ZERO),
+          monto: calcularMontoPresentismoSegunReglas(reglas.presentismo, conceptoAdicionalNR!.monto, conceptoAntiguedadNR?.monto ?? ZERO),
           afectaAportes: false,
           afectaContribuciones: true,
           afectaSAC: false,
@@ -324,7 +340,7 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
     consentimientoFirmado: false,
   });
 
-  if (aplicaReglasConvenio || tieneNoRemunerativo) {
+  if (usaDeduccionesConvenioComercio && (aplicaReglasConvenio || tieneNoRemunerativo)) {
     if (input.tasas.contribSindical.gt(0)) {
       deduccionesConvenio.push(
         nuevaDeduccion("30004", "Sindicato", round2(totalRemunerativo.times(input.tasas.contribSindical)), "SINDICAL", input.tasas.contribSindical),
@@ -360,6 +376,15 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
         );
       }
     }
+  }
+
+  // 6 bis. Deducciones sindicales propias de convenios que no son Comercio (ver `reglas`,
+  // `resolverReglasConvenio`) — vacío para Comercio (usa el bloque de arriba, sin tocar) y para
+  // "sin convenio". Ya vienen filtradas por tasa > 0 desde el resolver.
+  for (const ded of reglas.deduccionesSindicales) {
+    deduccionesConvenio.push(
+      nuevaDeduccion(ded.codigoConcepto, ded.nombre, round2(totalRemunerativo.times(ded.tasa)), "SINDICAL", ded.tasa),
+    );
   }
 
   // 7. Otras deducciones del período (manuales) + las de convenio recién armadas, con topes del art. 133.

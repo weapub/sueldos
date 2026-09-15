@@ -17,6 +17,9 @@ export type SubtipoConcepto =
 
 export type ModalidadRemuneracion = "MENSUAL" | "JORNAL" | "HORA";
 
+/** Ruleset de convenio que aplica el motor — ver `resolverReglasConvenio` en `convenios.ts`. */
+export type Convenio = "COMERCIO_130_75" | "UECARA_660_13";
+
 export interface ConceptoInput {
   /** Identificador estable (ConceptoDefinicion.id o clave sintética como "BASICO"/"SAC"). */
   id: string;
@@ -80,6 +83,14 @@ export interface TasasVigentes {
   riflReduccionContribuciones: Money;
   /** Divisor para el valor de la hora extra: valor hora = (básico+antigüedad+presentismo) / divisor. */
   divisorHorasMes: Money;
+  /**
+   * UECARA CCT 660/13 (ver `src/lib/payroll/convenios.ts`, `resolverReglasConvenio`):
+   * antigüedad es un monto fijo por año (no % del básico como Comercio), presentismo es un %
+   * flat del básico, y tiene su propia cuota sindical.
+   */
+  antiguedadMontoFijoAnioUecara: Money;
+  presentismoPorcentajeUecara: Money;
+  cuotaSindicalUecara: Money;
 }
 
 export type ModalidadHorasExtra = "PAGO" | "BANCO_HORAS" | "FRANCO_COMPENSATORIO";
@@ -108,6 +119,12 @@ export interface LegajoMensualInput {
   afiliadoSindical?: boolean;
   /** true si el legajo está dentro de la ventana RIFL (alta 01/05/2026-30/04/2027) — lo resuelve el llamador. */
   aplicaRIFL?: boolean;
+  /**
+   * Qué ruleset de convenio aplica (antigüedad/presentismo/deducciones sindicales propias) —
+   * ver `resolverReglasConvenio` en `src/lib/payroll/convenios.ts`. Default `COMERCIO_130_75`
+   * si no se informa, para no romper los tests/llamadores existentes.
+   */
+  convenio?: Convenio;
 }
 
 export interface LiquidacionMensualInput {
