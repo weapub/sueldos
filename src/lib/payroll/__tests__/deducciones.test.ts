@@ -29,6 +29,9 @@ const tasas: TasasVigentes = {
     antiguedadMontoFijoAnioUecara: money(0),
     presentismoPorcentajeUecara: money(0),
     cuotaSindicalUecara: money(0),
+    presentismoPorcentajeUocra: money(0),
+    cuotaSindicalUocra: money(0),
+    aporteSolidarioUocra: money(0),
 };
 
 function sindical(nombre: string, monto: number): ConceptoInput {

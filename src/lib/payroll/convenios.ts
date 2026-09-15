@@ -51,6 +51,24 @@ export function resolverReglasConvenio(convenio: Convenio, tasas: TasasVigentes)
           ? [{ codigoConcepto: "30013", nombre: "Cuota sindical UECARA", tasa: tasas.cuotaSindicalUecara }]
           : [],
       };
+    case "UOCRA_22_250": {
+      // Ley 22.250 / CCT 76/75: el convenio no otorga adicional por antigüedad — no es un
+      // "0%", es que la línea no existe en absoluto (ver `calcularMontoAntiguedadSegunReglas`,
+      // caso "NINGUNA"). La indemnización por cese es un Fondo de Cese Laboral, no art. 245 —
+      // eso todavía no está implementado (ver aviso en `calcularYGuardarIndemnizacion`).
+      const deducciones: DeduccionSindicalConvenio[] = [];
+      if (tasas.cuotaSindicalUocra.gt(0)) {
+        deducciones.push({ codigoConcepto: "30014", nombre: "Cuota sindical UOCRA", tasa: tasas.cuotaSindicalUocra });
+      }
+      if (tasas.aporteSolidarioUocra.gt(0)) {
+        deducciones.push({ codigoConcepto: "30015", nombre: "Aporte solidario UOCRA", tasa: tasas.aporteSolidarioUocra });
+      }
+      return {
+        antiguedad: { forma: "NINGUNA" },
+        presentismo: { forma: "PORCENTAJE_FLAT_BASICO", tasa: tasas.presentismoPorcentajeUocra },
+        deduccionesSindicales: deducciones,
+      };
+    }
     case "COMERCIO_130_75":
     default:
       return {

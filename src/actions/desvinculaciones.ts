@@ -167,6 +167,20 @@ export async function calcularYGuardarIndemnizacion(
       fallecimiento: evento.motivo === "FALLECIMIENTO" ? { beneficiarios } : undefined,
     });
 
+    // UOCRA (Ley 22.250) reemplaza preaviso e indemnización art. 245 por el Fondo de Cese
+    // Laboral — un mecanismo de cuenta individual del trabajador, no implementado todavía (ver
+    // FASE 6-C del roadmap). El cálculo de arriba usa el régimen LCT estándar, que NO aplica a
+    // este convenio: se avisa en vez de dejar salir un monto que parece válido pero no lo es.
+    if (legajo.categoria.convenio === "UOCRA_22_250") {
+      resultado.warnings.push(
+        "UOCRA (Ley 22.250): este convenio no usa indemnización por antigüedad art. 245 ni " +
+          "preaviso LCT — los reemplaza el Fondo de Cese Laboral (depósitos mensuales del " +
+          "empleador en una cuenta individual del trabajador). El sistema todavía no calcula " +
+          "el Fondo de Cese; los montos de indemnización/preaviso de abajo NO corresponden a " +
+          "este legajo y no deben usarse.",
+      );
+    }
+
     // --- Liquidación final (rubros además de la indemnización) ---
     const egresoAnio = evento.fechaEgreso.getUTCFullYear();
     const egresoMes = evento.fechaEgreso.getUTCMonth() + 1;

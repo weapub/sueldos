@@ -29,6 +29,9 @@ export const claveTasaValues = [
   "ANTIGUEDAD_MONTO_FIJO_ANIO_UECARA",
   "PRESENTISMO_PORCENTAJE_UECARA",
   "CUOTA_SINDICAL_UECARA",
+  "PRESENTISMO_PORCENTAJE_UOCRA",
+  "CUOTA_SINDICAL_UOCRA",
+  "APORTE_SOLIDARIO_UOCRA",
 ] as const;
 
 export const CLAVE_TASA_LABEL: Record<(typeof claveTasaValues)[number], string> = {
@@ -60,6 +63,9 @@ export const CLAVE_TASA_LABEL: Record<(typeof claveTasaValues)[number], string> 
   ANTIGUEDAD_MONTO_FIJO_ANIO_UECARA: "UECARA — Antigüedad, monto fijo por año ($)",
   PRESENTISMO_PORCENTAJE_UECARA: "UECARA — Presentismo (% flat del básico)",
   CUOTA_SINDICAL_UECARA: "UECARA — Cuota sindical (%)",
+  PRESENTISMO_PORCENTAJE_UOCRA: "UOCRA — Presentismo (% flat del básico)",
+  CUOTA_SINDICAL_UOCRA: "UOCRA — Cuota sindical (%)",
+  APORTE_SOLIDARIO_UOCRA: "UOCRA — Aporte solidario (%)",
 };
 
 /** Claves cuyo `valor` es un monto fijo en pesos, no una fracción/porcentaje. */

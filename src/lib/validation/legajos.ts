@@ -10,11 +10,12 @@ export const tipoContratoValues = [
 
 export const modalidadRemuneracionValues = ["MENSUAL", "JORNAL", "HORA"] as const;
 
-export const convenioValues = ["COMERCIO_130_75", "UECARA_660_13"] as const;
+export const convenioValues = ["COMERCIO_130_75", "UECARA_660_13", "UOCRA_22_250"] as const;
 
 export const CONVENIO_LABEL: Record<(typeof convenioValues)[number], string> = {
   COMERCIO_130_75: "Comercio (CCT 130/75)",
   UECARA_660_13: "UECARA (CCT 660/13)",
+  UOCRA_22_250: "UOCRA (Ley 22.250)",
 };
 
 export const categoriaConvenioSchema = z.object({

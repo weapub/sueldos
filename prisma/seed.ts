@@ -45,6 +45,10 @@ async function main() {
     { clave: "ANTIGUEDAD_MONTO_FIJO_ANIO_UECARA", valor: 0 },
     { clave: "PRESENTISMO_PORCENTAJE_UECARA", valor: 0 },
     { clave: "CUOTA_SINDICAL_UECARA", valor: 0 },
+    // UOCRA Ley 22.250: ídem, 0 por defecto hasta cargar la escala oficial.
+    { clave: "PRESENTISMO_PORCENTAJE_UOCRA", valor: 0 },
+    { clave: "CUOTA_SINDICAL_UOCRA", valor: 0 },
+    { clave: "APORTE_SOLIDARIO_UOCRA", valor: 0 },
     // FAL y topes de deducción (Ley 27.802)
     { clave: "FAL_GRANDE", valor: 0.01 },
     { clave: "FAL_PYME", valor: 0.025 },

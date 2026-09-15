@@ -85,6 +85,10 @@ export const CONCEPTOS_SINTETICOS: ConceptoSinteticoDef[] = [
     formula: "Suma de los adelantos de sueldo del legajo pendientes de descontar — se cargan desde el detalle del legajo." },
   { codigo: "30013", codigoArca: "810004", nombre: "CUOTA SINDICAL UECARA", tipo: "DEDUCCION", subtipo: "SINDICAL", rubroRecibo: "SINDICAL", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 91,
     formula: "Total remunerativo × {CUOTA_SINDICAL_UECARA}." },
+  { codigo: "30014", codigoArca: "810004", nombre: "CUOTA SINDICAL UOCRA", tipo: "DEDUCCION", subtipo: "SINDICAL", rubroRecibo: "SINDICAL", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 91,
+    formula: "Total remunerativo × {CUOTA_SINDICAL_UOCRA}." },
+  { codigo: "30015", codigoArca: "810002", nombre: "APORTE SOLIDARIO UOCRA", tipo: "DEDUCCION", subtipo: "SINDICAL", rubroRecibo: "SINDICAL", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 91,
+    formula: "Total remunerativo × {APORTE_SOLIDARIO_UOCRA}." },
 
   // Contribuciones patronales (Sección B del recibo Anexo III)
   { codigo: "CP_JUBILACION", nombre: "Contribución jubilación (patronal)", tipo: "CONTRIBUCION_PATRONAL", rubroRecibo: "SEGURIDAD_SOCIAL", afectaAportes: false, afectaContribuciones: false, afectaSAC: false, ordenImpresion: 100,

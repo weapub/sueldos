@@ -58,7 +58,7 @@ export function calcularLiquidacionMensual(input: LiquidacionMensualInput): Liqu
   // de su propia cuota sindical (`reglas.deduccionesSindicales`, bloque 6 bis) — sin este gate,
   // si la tasa global de CONTRIB_SINDICAL está cargada (caso normal en una empresa con
   // categorías Comercio), un legajo UECARA de la misma empresa pagaría las dos deducciones.
-  const usaDeduccionesConvenioComercio = convenioLegajo !== "UECARA_660_13";
+  const usaDeduccionesConvenioComercio = convenioLegajo === "COMERCIO_130_75";
 
   // 1. Básico, prorrateado por part-time (art. 92 ter) y por días trabajados.
   const montoBasico = prorratear(

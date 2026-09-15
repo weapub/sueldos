@@ -18,7 +18,7 @@ export type SubtipoConcepto =
 export type ModalidadRemuneracion = "MENSUAL" | "JORNAL" | "HORA";
 
 /** Ruleset de convenio que aplica el motor — ver `resolverReglasConvenio` en `convenios.ts`. */
-export type Convenio = "COMERCIO_130_75" | "UECARA_660_13";
+export type Convenio = "COMERCIO_130_75" | "UECARA_660_13" | "UOCRA_22_250";
 
 export interface ConceptoInput {
   /** Identificador estable (ConceptoDefinicion.id o clave sintética como "BASICO"/"SAC"). */
@@ -91,6 +91,13 @@ export interface TasasVigentes {
   antiguedadMontoFijoAnioUecara: Money;
   presentismoPorcentajeUecara: Money;
   cuotaSindicalUecara: Money;
+  /**
+   * UOCRA Ley 22.250 (ver `resolverReglasConvenio`): sin adicional por antigüedad, presentismo
+   * flat del básico, cuota sindical y aporte solidario propios.
+   */
+  presentismoPorcentajeUocra: Money;
+  cuotaSindicalUocra: Money;
+  aporteSolidarioUocra: Money;
 }
 
 export type ModalidadHorasExtra = "PAGO" | "BANCO_HORAS" | "FRANCO_COMPENSATORIO";

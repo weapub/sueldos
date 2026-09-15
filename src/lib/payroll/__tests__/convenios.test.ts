@@ -33,6 +33,9 @@ const tasas: TasasVigentes = {
   antiguedadMontoFijoAnioUecara: money("9776"),
   presentismoPorcentajeUecara: money(0.1),
   cuotaSindicalUecara: money(0.02),
+  presentismoPorcentajeUocra: money(0.2),
+  cuotaSindicalUocra: money(0.02),
+  aporteSolidarioUocra: money(0.02),
 };
 
 describe("resolverReglasConvenio", () => {
@@ -54,6 +57,25 @@ describe("resolverReglasConvenio", () => {
 
   it("UECARA con cuota sindical en 0 no emite la deducción (sin cargar todavía)", () => {
     const reglas = resolverReglasConvenio("UECARA_660_13", { ...tasas, cuotaSindicalUecara: money(0) });
+    expect(reglas.deduccionesSindicales).toEqual([]);
+  });
+
+  it("UOCRA: sin antigüedad (el convenio no la otorga), presentismo % flat, cuota sindical + aporte solidario propios", () => {
+    const reglas = resolverReglasConvenio("UOCRA_22_250", tasas);
+    expect(reglas.antiguedad).toEqual({ forma: "NINGUNA" });
+    expect(reglas.presentismo).toEqual({ forma: "PORCENTAJE_FLAT_BASICO", tasa: tasas.presentismoPorcentajeUocra });
+    expect(reglas.deduccionesSindicales).toEqual([
+      { codigoConcepto: "30014", nombre: "Cuota sindical UOCRA", tasa: tasas.cuotaSindicalUocra },
+      { codigoConcepto: "30015", nombre: "Aporte solidario UOCRA", tasa: tasas.aporteSolidarioUocra },
+    ]);
+  });
+
+  it("UOCRA con tasas en 0 no emite ninguna deducción sindical (sin cargar todavía)", () => {
+    const reglas = resolverReglasConvenio("UOCRA_22_250", {
+      ...tasas,
+      cuotaSindicalUocra: money(0),
+      aporteSolidarioUocra: money(0),
+    });
     expect(reglas.deduccionesSindicales).toEqual([]);
   });
 });

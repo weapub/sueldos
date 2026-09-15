@@ -75,6 +75,7 @@ model Empresa {
 enum Convenio {
   COMERCIO_130_75
   UECARA_660_13
+  UOCRA_22_250
 }
 
 model CategoriaConvenio {
@@ -562,6 +563,10 @@ enum ClaveTasa {
   ANTIGUEDAD_MONTO_FIJO_ANIO_UECARA // monto fijo ($/año), no fracción
   PRESENTISMO_PORCENTAJE_UECARA
   CUOTA_SINDICAL_UECARA
+  // UOCRA Ley 22.250 — sin adicional por antigüedad (el convenio no lo otorga)
+  PRESENTISMO_PORCENTAJE_UOCRA
+  CUOTA_SINDICAL_UOCRA
+  APORTE_SOLIDARIO_UOCRA
 }
 
 model TasaLaboral {

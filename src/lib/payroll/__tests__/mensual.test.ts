@@ -29,6 +29,9 @@ const tasas: TasasVigentes = {
   antiguedadMontoFijoAnioUecara: money(0),
   presentismoPorcentajeUecara: money(0),
   cuotaSindicalUecara: money(0),
+  presentismoPorcentajeUocra: money(0),
+  cuotaSindicalUocra: money(0),
+  aporteSolidarioUocra: money(0),
 };
 
 describe("calcularLiquidacionMensual", () => {
@@ -402,6 +405,9 @@ describe("caso de regresión GONZALEZ IVAN (GONZALEZ.xlsm, legajo 3, período JU
     antiguedadMontoFijoAnioUecara: money(0),
     presentismoPorcentajeUecara: money(0),
     cuotaSindicalUecara: money(0),
+    presentismoPorcentajeUocra: money(0),
+    cuotaSindicalUocra: money(0),
+    aporteSolidarioUocra: money(0),
   };
 
   const mejorRemuneracionSemestre = money("263517.79"); // básico + antigüedad + presentismo del propio período (sin historial previo)
@@ -530,5 +536,51 @@ describe("legajo UECARA CCT 660/13: antigüedad monto fijo, presentismo % flat, 
 
     expect(resultado.conceptos.find((c) => c.codigo === "30004")).toBeUndefined(); // SINDICATO
     expect(resultado.conceptos.find((c) => c.codigo === "30005")).toBeUndefined(); // FAECYS
+  });
+});
+
+describe("legajo UOCRA Ley 22.250: sin antigüedad, presentismo 20% flat, deducciones propias", () => {
+  const tasasUocra: TasasVigentes = {
+    ...tasas,
+    presentismoPorcentajeUocra: money(0.2),
+    cuotaSindicalUocra: money(0.02),
+    aporteSolidarioUocra: money(0.02),
+  };
+
+  const resultado = calcularLiquidacionMensual({
+    legajo: {
+      sueldoBasico: money(900000),
+      horasSemanalesFullTime: money(48),
+      modalidadRemuneracion: "MENSUAL",
+      antiguedadAnios: 5, // el convenio no otorga adicional por antigüedad — no debe importar
+      convenio: "UOCRA_22_250",
+    },
+    anio: 2026,
+    mes: 7,
+    diasTrabajados: 31,
+    diasEnMes: 31,
+    esMesSAC: false,
+    conceptos: [],
+    tasas: tasasUocra,
+  });
+
+  it("no emite línea de antigüedad en absoluto, no solo en $0", () => {
+    expect(resultado.conceptos.find((c) => c.codigo === "10002")).toBeUndefined();
+  });
+
+  it("presentismo = 20% flat del básico ($180.000), sin sumar antigüedad ni dividir por 12", () => {
+    const presentismo = resultado.conceptos.find((c) => c.codigo === "10003");
+    expect(presentismo?.monto.toFixed(2)).toBe("180000.00");
+  });
+
+  it("cuota sindical (30014) y aporte solidario (30015) UOCRA, sin líneas de Comercio/UECARA", () => {
+    const cuota = resultado.conceptos.find((c) => c.codigo === "30014");
+    const aporte = resultado.conceptos.find((c) => c.codigo === "30015");
+    expect(cuota?.montoAjustado.toFixed(2)).toBe(resultado.totalRemunerativo.times("0.02").toFixed(2));
+    expect(aporte?.montoAjustado.toFixed(2)).toBe(resultado.totalRemunerativo.times("0.02").toFixed(2));
+
+    expect(resultado.conceptos.find((c) => c.codigo === "30004")).toBeUndefined(); // SINDICATO
+    expect(resultado.conceptos.find((c) => c.codigo === "30005")).toBeUndefined(); // FAECYS
+    expect(resultado.conceptos.find((c) => c.codigo === "30013")).toBeUndefined(); // cuota UECARA
   });
 });
